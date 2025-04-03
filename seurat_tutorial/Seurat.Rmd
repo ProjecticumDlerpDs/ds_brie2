@@ -1,0 +1,72 @@
+---
+title: "Seurat.Rmd"
+author: "Anne Brussaard"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+#Document voor het instaleren en volgen van een tutorial met Seurat
+
+#aanmaken conda-omgeving 
+```{bash}
+conda create -n project_brie2
+```
+
+#activatie conda-omgeving 
+```{bash}
+conda activate project_brie2
+```
+
+#Instalatie van Seurat
+#installatie van Seurat v4 wordt gedaan via conda 
+```{bash}
+conda install -c bioconda r-seurat
+```
+
+#R laden in conda 
+```{bash}
+R
+```
+
+#Seurat laden in conda-omgeving 
+```{bash}
+library(Seurat)
+```
+
+#Tutorial Seurat - Guided Clustering Tutorial 
+#Setup the Seurat Object 
+#load packages 
+```{bash}
+library(dplyr)
+library(patchwork)
+```
+
+#downloaden van de data 
+#de data is gedownload van 10x Genomics. Het bestand is een `tar.gz`bestand dat UMI count matrices bevat. 
+#bestand lokaal gedownload en geupload op locatie Project-BRIE2/seurat_tutorial/raw_data
+
+#bestand uitpakken 
+```{bash}
+untar("/Project-BRIE2/seurat_tutorial/raw_data/pbmc3k_filtered_gene_bc_matrices.tar.gz", exdir = "/Project-BRIE2/seurat_tutorial/raw_data/pbmc3k/")
+```
+
+#data inlezen
+```{R}
+pbmc_data <- Read10X(data.dir = "/")
+```
+
+#Load in data from 10x
+```{r}
+Read10X(
+  data.dir,
+  gene.column = 2,
+  cell.column = 1,
+  unique.features = TRUE,
+  strip.suffix = FALSE
+)
+```
+
+
+
+
+
