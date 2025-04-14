@@ -7,31 +7,6 @@ output: html_document
 
 #Document voor het instaleren en volgen van een tutorial met Seurat
 
-#aanmaken conda-omgeving 
-```{bash}
-conda create -n project_brie2
-```
-
-#activatie conda-omgeving 
-```{bash}
-conda activate project_brie2
-```
-
-#Instalatie van Seurat
-#installatie van Seurat v4 wordt gedaan via conda 
-```{bash}
-conda install -c bioconda r-seurat
-```
-
-#R laden in conda 
-```{bash}
-R
-```
-
-#Seurat laden in conda-omgeving 
-```{R}
-library(Seurat)
-```
 
 #Tutorial Seurat - Guided Clustering Tutorial 
 #Setup the Seurat Object 
