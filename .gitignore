@@ -47,3 +47,7 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Voeg grote bestanden toe aan .gitignore
+seurat_pipeline/bewerkte_data/umap_seurat_embryoE85.rds
+seurat_pipeline/raw_data/e85_count_matrix.mtx.gz
