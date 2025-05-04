@@ -1,0 +1,226 @@
+---
+title: "Seurat pipeline"
+author: "Anne Brussaard"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+In dit bestand zullen de volgende deelvragen behandeld worden. 1. Welke filtering is geschikt voor de data?
+2. Hoeveel PCA's worden meegenomen in verdere analyse?
+3. Welke clusters kunnen gebruikt worden voor de analyse met BRIE2.
+
+Om deze vragen te kunnen beantwoorden zal de volgende workflow worden
+gevolgd. 1. Data laden 2. Seurat object maken 3. Kwaliteits check data
+4. Normalisatie data 5. PCA analyse 6. Clustering 7. UMAP 8.Selectie clusters 
+
+Stap 1.1: Packages laden. De packages dplyr, ggplot2, pheatmap, tidyr, RColorBrewer,
+ggrepel, Seurat, Matrix, patchwork en here worden geladen.
+```{r include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(pheatmap)
+library(tidyr)
+library(RColorBrewer)
+library(ggrepel)
+library(Seurat)
+library(Matrix)
+library(patchwork)
+library(here)
+```
+
+Stap 1.2: Data wordt geladen
+```{r include=FALSE}
+features <- read.csv(here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"))
+samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"))
+```
+
+Stap 1.3: MTX files worden geladen
+```{r include=FALSE}
+counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz"),
+                  here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"),
+                  here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"),
+  feature.sep = ",",
+  cell.sep = ",",
+  cell.column = 3,
+  feature.column = 1,
+  skip.cell = 1,
+  skip.feature = 1
+)
+```
+
+Stap 2.1: Seurat object maken
+```{r include=FALSE}
+seurat <- CreateSeuratObject(counts = counts, 
+                             project = "mouse-embryo", 
+                             min.cells = 3, 
+                             min.features = 200)
+```
+
+Het percentage mitochondriale expressie wordt handmatig toegevoegd aan het seurat object
+```{r include=FALSE}
+seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
+```
+
+Deelvraag: Welke filtering is geschikt voor de data?
+
+Stap 3.1:Kwaliteit check met visualisatie in violin plot van
+nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal
+moleculen), en percent.mt (mitochondriale expressie).
+```{r echo=FALSE, fig.align='center', fig.width=10, fig.height=5}
+VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+Stap 3.2: Visualisatie in Shatterplot
+```{r echo=FALSE, fig.align='center'}
+cnt_ftr <- FeatureScatter(seurat, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+print(cnt_ftr)  
+
+cnt_mt <- FeatureScatter(seurat, feature1 = "nCount_RNA", feature2 = "percent.mt")
+```
+
+Deel conclusie: Op basis van deze figuren is gekozen voor de volgende filtering
+nFeature_RNA \<2000 \>12000 zo worden de lege en dubbele metingen niet
+meegenomen. percent.mt \<5 zo worden cellen die dood zijn of stress
+hebben niet meegenomen.
+
+Stap 3.3:Filteren van de data
+```{r include=FALSE}
+seurat <- subset(seurat, subset = nFeature_RNA > 2000 & nFeature_RNA < 12000 & percent.mt < 5)
+```
+
+Stap 4.1:Normalisatie van de data
+```{r include=FALSE}
+seurat <- NormalizeData(seurat, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+Stap 4.2: Variabele genen vinden
+```{r include=FALSE}
+seurat <- FindVariableFeatures(seurat, selection.method = "vst", nfeatures = 2000)
+
+top10 <- head(VariableFeatures(seurat), 10)
+```
+
+Stap 4.3: Variable genen plotten
+```{r echo=FALSE, fig.align='center', warning=FALSE}
+plot1 <- VariableFeaturePlot(seurat)
+
+vrbl <- LabelPoints(plot = plot1, points = top10, repel = TRUE, xnudge = 0, ynudge = 0)
+print(vrbl)  
+```
+
+Stap 4.4: Schalen van genen. Er wordt een lijst gemaakt van alle
+gebruikte genen, deze krijgen allemaal een gemiddelde en standaard
+deviatie van de expressie
+```{r include=FALSE}
+all.genes <- rownames(seurat)
+seurat <- ScaleData(seurat, features = all.genes)
+```
+
+
+Deelvraag: Hoeveel PCAs worden meegenomen in verdere analyse?
+
+Stap 5.1: PCA analyse uitvoeren
+```{r include=FALSE}
+seurat <- RunPCA(seurat, features = VariableFeatures(object = seurat))
+print(seurat[["pca"]], dims = 1:5, nfeatures = 5)
+```
+
+Stap 5.2: PCA analyse plotten
+```{r echo=FALSE, fig.align='center'}
+ElbowPlot(seurat)
+```
+
+Deel conclusie: Vanuit de eerder gevolgde tutorial is geadviseerd om 10 PC's mee te
+nemen in cluster analyse voor betrouwbaar resultaat. Ook is te zien in
+de elbowplot dat de "elbow" afneemt na 10 PC's. Daarom zullen de eerste
+10 PC's worden meegenomen in de verder cluster analyse.
+
+Stap 6.1: Clusteren Er zal cluster analyse worden uitgevoerd op de
+eerste 10 PC's.
+```{r include=FALSE}
+seurat <- FindNeighbors(seurat, dims = 1:10)
+seurat <- FindClusters(seurat, resolution = 0.5)
+```
+
+Stap 7.1: UMAP clusters
+```{r echo=FALSE, fig.align='center', warning=FALSE, message=FALSE}
+seurat <- RunUMAP(seurat, dims = 1:10)
+
+umap_plot <- DimPlot(seurat, reduction = "umap")
+print(umap_plot)  
+```
+In de UMAP worden 17 verschillende clusters weergeven.
+
+Deelvraag: Welke clusters worden geselecteerd voor analyse in BRIE2?
+
+Om te kunnen bepalen welke clusters meegenomen worden in analyse met
+BRIE2 zal nu verder gekeken worden naar de biomarkers.
+
+Stap 8.1. Biomarkers markers vinden in alle clusters en alleen de
+positieve worden geraporteerd
+```{r include=FALSE}
+seurat.markers <- FindAllMarkers(seurat, only.pos = TRUE)
+seurat.markers %>% 
+  group_by(cluster) %>%
+  dplyr::filter(avg_log2FC > 1 )
+```
+
+Stap 8.2 Top 3 genen per cluster selecteren
+```{r include=FALSE}
+top_genen <- seurat.markers %>%
+  group_by(cluster) %>%
+  top_n(n = 3, wt = avg_log2FC) %>%
+  pull(gene) %>%
+  unique()
+```
+
+Stap 8.3: Top 3 genen per cluster plotten 
+```{r echo=FALSE, fig.align='center', fig.width=10, fig.height=5}
+DotPlot(seurat, features = top_genen) + RotatedAxis()
+```
+
+Omdat met BRIE2 gekeken kan worden naar exon skipping zal gekeken worden
+in welke clusters genen met variatie in expressie in exonen voorkomt
+
+Stap 8.4:Exon genen selecteren
+```{r include=FALSE}
+exon_genes <- grep("-exon$", rownames(seurat), value = TRUE)
+```
+
+Stap 8.5: Gemiddelde expressie per cluster berekenen
+```{r include=FALSE}
+avg_expr <- AverageExpression(seurat, features = exon_genes, group.by = "seurat_clusters")$RNA
+```
+
+Stap 8.6: Variatie per exon tussen clusters bereken
+```{r include=FALSE}
+cluster_var <- apply(avg_expr, 1, var)
+```
+
+Stap 8.7: Top 5 exonen selecteren
+```{r include=FALSE}
+top_exons <- names(sort(cluster_var, decreasing = TRUE))[1:5]
+```
+
+Stap 8.7: Verschil tussen clusters aantonen en visualiseren
+```{r echo=FALSE, fig.align='center', fig.width=7, fig.height=5}
+for (gene in top_exons) {
+  values <- avg_expr[gene, ]
+  max_cluster <- names(which.max(values))
+  min_cluster <- names(which.min(values))
+  
+  cat(sprintf("\n%s: hoogste in cluster %s (%.2f), laagste in cluster %s (%.2f)\n",
+              gene, max_cluster, max(values), min_cluster, min(values)))
+  
+p1 <- FeaturePlot(seurat, features = gene, order = TRUE) + ggtitle(paste(gene, "- UMAP"))
+p2 <- DotPlot(seurat, features = gene, group.by = "seurat_clusters") 
+
+print(p1 + p2)
+
+}
+```
+
+Dee conclusie: Uit deze resultaten is gekozen voor cluster 14 en 4 op basis van gen
+Slc2a3-exon. Het exon gen heeft in 2 clusters expressie waardoor deze te vergelijken zijn. Dit is een gen wat gelinked wordt aan tumor ontwikkeling,
+en het gen is zeer onstabiel en gevoelig voor recombinante
+veranderingen. 

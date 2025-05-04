@@ -1,0 +1,177 @@
+---
+title: "Seurat tutorial"
+author: "Anne Brussaard"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+Deelvraag: Kan ik door het volgen van een tutorial met Seurat data preprocessing en visualisatie uitvoeren?
+Om deze deelvraag te beantwoorden zal het volgende flowschema aangehouden worden.
+
+1. De data wordt geladen
+2. Er wordt een Seurat object gemaakt
+3. De filterstappen worden uitgevoerd
+4. Clusters worden visueel gemaakt
+
+De packages worden geladen. Seurat voor analyse, dplyr voor filteren en selecteren en patchwork voor maken van plots
+```{r include = FALSE}
+library(Seurat)
+library(dplyr)
+library(patchwork)
+```
+
+
+Stap 1: De data wordt ingeladen 
+de data is gedownload van 10x Genomics. Het bestand is een `tar.gz`bestand dat UMI count matrices bevat. Het is een data set van PMBC cellen waarbij 2700 losse cellen zijn gesequenced met Illumina Next Seq 500. 
+
+```{r include=FALSE}
+pbmc.data <- Read10X(data.dir = "~/Project-BRIE2/seurat_tutorial/raw_data/filtered_gene_bc_matrices/hg19/")
+```
+
+Stap 2.1: Er wordt een Seurat object gemaakt
+```{r include=FALSE}
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+```
+
+Stap 2.2: De 0 values worden weg gefilterd en een compactere versie van het object wordt opgeslagen
+```{r include=FALSE}
+dense.size <- object.size(as.matrix(pbmc.data))
+
+sparse.size <- object.size(pbmc.data)
+
+dense.size/sparse.size
+```
+
+Stap 3.1: Kwaliteits check uitvoeren en cellen selecteren voor analyse 
+Het percentage mitochondriale RNA wordt toegevoegd aan het seurat object
+```{r include=FALSE}
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+```
+
+Stap 3.2:Visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), 
+en percent.mt (mitochondriale expressie).
+```{r echo=FALSE, fig.align='center'}
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+Stap 3.3:Visualisatie in Feautre Scatter
+```{r echo=FALSE, fig.align='center'}
+plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+combined <- plot1 + plot2
+
+print(combined)
+```
+
+Stap 3.4.Filtering 
+QC filter >200 gene expression (lage of lege droplets hebben vaak weinig genen), <2500 cellen met veel genen (dubbel getelde droplets hebben vaak hoge genen), <5 mitochondriale expression (hogere MT expressie komt vaak door lage kwaliteit van de cel )
+```{r include=FALSE}
+pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+```
+
+Stap 3.5.Normalisatie van data volgens standaard normalisatie
+```{r include=FALSE}
+pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+ 
+Stap 3.6.Feature selection. 
+De genen die veel verschil in expressie hebben per cel worden geselecteerd. 
+```{r include=FALSE}
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+```
+
+Stap 3.6. De 10 meest variabele genen worden geselecteerd
+```{r include=FALSE}
+top10 <- head(VariableFeatures(pbmc), 10)
+```
+
+Stap 3.7. De 10 meest variable genen worden geplot 
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=15, fig.height=10, fig.align='center'}
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+
+print(plot1 + plot2)
+```
+
+Stap 3.8. De data wordt geschaalt volgens standaard proceduren voor PCA analyse 
+```{r include=FALSE}
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features = all.genes)
+```
+
+Stap 3.9. De PCA analyse wordt uitgevoerd en gevisualiseerd
+```{r echo=FALSE}
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+
+#visualisatie PCA results 
+print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+
+DimPlot(pbmc, reduction = "pca") + NoLegend()
+```
+```{r echo=FALSE, fig.width=20, fig.height=15}
+DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)
+```
+
+Stap 3.10.De dimentie van het dataset wordt bepaald
+```{r echo=FALSE, fig.align='center'}
+ElbowPlot(pbmc)
+```
+
+Op basis van deze ElbowPlot zijn de eerste 10 PCs geselecteerd omdat de 
+"elbow" stopt rond PC9-10, wat wijst op een signaal in de eerste 10 PCs.
+
+Stap 3.11. De cellen worden geclusterd op basis van de eerste 10 PCs. 
+```{r include=FALSE}
+pbmc <- FindNeighbors(pbmc, dims = 1:10)
+pbmc <- FindClusters(pbmc, resolution = 0.5)
+```
+
+Stap 4.1 De UMAP maken.
+De gevormde clusters worden weergeven aan de hand van 10 PCs. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+DimPlot(pbmc, reduction = "umap")
+```
+
+Stap 5.1 Cluster biomarkers vinden
+Alle markers van alle clusters worden gevonden en alleen de positieve worden gerapporteerd.
+```{r echo=FALSE, message=FALSE}
+pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE)
+pbmc.markers %>%
+    group_by(cluster) %>%
+    dplyr::filter(avg_log2FC > 1)
+```
+
+Stap 5.2 Een heatmap wordt gemaakt voor de top 20 markers.
+Er wordt aangegeven in welke clusters de genen voorkomen. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=20, fig.height=15, fig.align='center'}
+pbmc.markers %>%
+    group_by(cluster) %>%
+    dplyr::filter(avg_log2FC > 1) %>%
+    slice_head(n = 10) %>%
+    ungroup() -> top10
+DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+```
+
+Stap 5.3. De cell type worden aan de clusters gekoppeld 
+```{r include=FALSE}
+new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
+    "NK", "DC", "Platelet")
+names(new.cluster.ids) <- levels(pbmc)
+pbmc <- RenameIdents(pbmc, new.cluster.ids)
+DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+Stap 5.4. Er wordt een UMAP gemaakt waarin wordt aangegeven welk cluster welk celtype is. 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+plot <- DimPlot(pbmc, reduction = "umap", label = TRUE, label.size = 4.5) + xlab("UMAP 1") + ylab("UMAP 2") +
+    theme(axis.title = element_text(size = 18), legend.text = element_text(size = 18)) + guides(colour = guide_legend(override.aes = list(size = 10)))
+print(plot)
+```
+
+Conclusie:
+Het is gelukt om door het volgen van de tutorial de preprocessing en visulalisatie van de aangereikte data uit te voeren. 

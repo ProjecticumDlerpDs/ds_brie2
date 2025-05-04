@@ -6,7 +6,7 @@
 #bestand lokaal gedownload en geupload op locatie Project-BRIE2/seurat_tutorial/raw_data
 
 #bestand uitpakken in terminal 
-(project_brie2) 1843893@hu-p-dataanalysis01:~/Project-BRIE2/seurat_tutorial/raw_data$ tar -xzvf pbmc3k_filtered_gene_bc_matrices.tar.gz
+#(project_brie2) 1843893@hu-p-dataanalysis01:~/Project-BRIE2/seurat_tutorial/raw_data$ tar -xzvf pbmc3k_filtered_gene_bc_matrices.tar.gz
 
 
 #data inlezen
