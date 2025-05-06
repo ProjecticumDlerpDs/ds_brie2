@@ -25,5 +25,32 @@ R version 4.1.2 (2021-11-01) -- "Bird Hippie"
 Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu (64-bit)
 
+## Reproduceerbaarheid 
+### Structuur repository 
+Project-BRIE2/
+├── seurat_tutorial/ # R-project met Seurat tutorial
+├── seurat_pipeline/ # R-project met de volledige Seurat pipeline
+├── brie2_tutorial/ # Python tutorial voor BRIE2
+├── brie2_pipeline/ # Volledige BRIE2 analysepipeline
+
+### Benodigheden
+- Conda (voor Python-omgevingen: TFProb, briekit en voor R-omgeving project_brie2)
+- R en RStudio (voor Seurat-analyses)
+- Git (voor versiebeheer)
+
+### Environments  
+|  Map               | Taal    | Environment        |  Versies                                
+| `seurat_tutorial/` | R       | `project_brie2`    | seurat-4.4.0                            
+| `seurat_pipeline/` | R       | `project_brie2`    | seurat-4.4.0                            
+| `brie2_tutorial/`  | Python  | `TFProb`           | python-3.11.11                           
+| `brie2_pipeline/`  | Python  | `briekit`, `TFProb`| briekit = python-2.7 en TFProb = python-3.11.11
+
+### Gebruik
+1. Open het Rstudio project 
+2. Activeer het juiste Environment 
+3. Open R o python in de terminal
+4. scripts runnen
+
+
 ## Auteur
 Anne Brussaard [@annebrussaard](https://github.com/annebrussaard)
