@@ -1,0 +1,12 @@
+---
+title: "BRIE2_tutorial"
+author: "Anne Brussaard"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Deelvraag: Kan ik door het volgen van een tutorial met BRIE2 data anlayse uitvoeren?
+
+De data is handmatig gedownload 
+
+Eerst worden de benodigde packages geladen. 

@@ -54,3 +54,6 @@ seurat_pipeline/raw_data/e85_count_matrix.mtx.gz
 
 # Project map 
 *.Rproj
+
+# ruwe data niet pushen 
+brie2_tutorial/raw_data
