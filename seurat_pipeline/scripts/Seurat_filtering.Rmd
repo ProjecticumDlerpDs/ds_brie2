@@ -1,0 +1,170 @@
+---
+title: "Seurat_filtering.Rmd"
+author: "Anne Brussaard"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+Om te kijken naar de effecten van filtering op een UMAP worden verschillende manieren van filtering met elkaar vergeleken. 
+
+Stap 1: Packages laden. 
+De packages dplyr, ggplot2, pheatmap, tidyr, RColorBrewer, ggrepel, Seurat, Matrix, patchwork en here worden geladen. Deze packages worden met de library functie toegepast in analyse.
+```{r include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(pheatmap)
+library(tidyr)
+library(RColorBrewer)
+library(ggrepel)
+library(Seurat)
+library(Matrix)
+library(patchwork)
+library(here)
+```
+
+Stap 2: Data wordt geladen
+De data wordt als csv bestand ingeladen en als object bewaard.
+```{r include=FALSE}
+features <- read.csv(here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"))
+samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"))
+```
+
+Stap 3: MTX files worden geladen
+Het object wordt samen met de matrix tabel ingeladen. 
+```{r include=FALSE}
+counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz"),
+                  here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"),
+                  here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"),
+  feature.sep = ",",
+  cell.sep = ",",
+  cell.column = 3,
+  feature.column = 1,
+  skip.cell = 1,
+  skip.feature = 1
+)
+```
+
+Stap 4: Seurat object maken
+Met de packages seurat wordt een object gemaakt waardoor de data gebruikt kan worden voor preprocessing. 
+```{r include=FALSE}
+seurat <- CreateSeuratObject(counts = counts, 
+                             project = "mouse-embryo", 
+                             min.cells = 3, 
+                             min.features = 200)
+```
+Het percentage mitochondriale expressie wordt handmatig toegevoegd aan het seurat object
+```{r include=FALSE}
+seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
+```
+
+Stap 5:Kwaliteit check met visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Dit wordt geplot in een violin plot zodat kan worden gekeken hoe de data is verdeeld. 
+```{r echo=FALSE, fig.align='center', fig.width=10, fig.height=5}
+VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+
+Stap 6. De data kan vervolgens op verschillende manieren worden gefilterd nu is gekozen voor de de opties sctrict, mild en geen filter. Dit is gedaan op basis van de violin plot uit stap 5. 
+```{r include=FALSE}
+seurat_strict <- subset(seurat, subset = nFeature_RNA > 2500 & nFeature_RNA < 10000 & percent.mt < 5)
+seurat_mild <- subset(seurat, subset = nFeature_RNA > 2000 & nFeature_RNA < 12000 & percent.mt < 5)
+seurat_nofilter <- seurat # geen filter toegepast
+```
+
+```{r include=FALSE}
+# Opslaan als RDS-bestanden
+saveRDS(seurat_strict, file = here("seurat_pipeline", "bewerkte_data", "seurat_strict.rds"))
+saveRDS(seurat_mild, file = here("seurat_pipeline", "bewerkte_data", "seurat_mild.rds"))
+saveRDS(seurat_nofilter, file = here("seurat_pipeline", "bewerkte_data", "seurat_nofilter.rds"))
+
+# Verwijder de objecten om geheugen vrij te maken
+rm(seurat_strict, seurat_mild, seurat_nofilter)
+gc()
+```
+
+```{r include=FALSE}
+# Laad de .rds bestanden in
+seurat_strict <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_strict.rds"))
+seurat_mild <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_mild.rds"))
+seurat_nofilter <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_nofilter.rds"))
+```
+
+Stap 7. Opnieuw worden de violin plots gemaakt om het effect van de filter stappen te zien op de data. 
+```{r echo=FALSE, fig.align='center', fig.width=12, fig.height=12}
+vln_strict <- VlnPlot(seurat_strict, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) + 
+  plot_annotation(title = "Strikt filter")
+
+vln_mild <- VlnPlot(seurat_mild, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) + 
+  plot_annotation(title = "Mild filter")
+
+vln_nofilter <- VlnPlot(seurat_nofilter, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) + 
+  plot_annotation(title = "Geen filter")
+
+(vln_strict / vln_mild / vln_nofilter)
+```
+
+Stap 8. Ook wordt een feature scatter geplot om te kijken naar de correlatie, en of er uitschieters aanwezig zijn. 
+```{r echo=FALSE, fig.align='center', fig.width=12, fig.height=12}
+fts_strict <- FeatureScatter(seurat_strict, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
+  ggtitle("Strikt filter")
+
+fts_mild <- FeatureScatter(seurat_mild, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
+  ggtitle("Mild filter")
+
+fts_nofilter <- FeatureScatter(seurat_nofilter, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
+  ggtitle("Geen filter")
+
+(fts_strict / fts_mild / fts_nofilter)
+```
+
+```{r include=FALSE}
+# Verwijder de objecten om geheugen vrij te maken
+rm(seurat_strict, seurat_mild, seurat_nofilter)
+gc()
+```
+
+Stap 9. Vervolgens wordt een functie geschreven om de de verder seurat analyse uit te voeren op de verschillende filter mogelijkheden. 
+```{r include=FALSE}
+process_seurat <- function(qc_filter_obj, label) {
+  qc_filter_obj <- NormalizeData(qc_filter_obj)
+  qc_filter_obj <- FindVariableFeatures(qc_filter_obj, selection.method = "vst", nfeatures = 2000)
+  all.genes <- rownames(qc_filter_obj)
+  qc_filter_obj <- ScaleData(qc_filter_obj, features = all.genes)
+  qc_filter_obj <- RunPCA(qc_filter_obj, features = VariableFeatures(qc_filter_obj))
+  qc_filter_obj <- FindNeighbors(qc_filter_obj, dims = 1:10)
+  qc_filter_obj <- FindClusters(qc_filter_obj, resolution = 0.5)
+  qc_filter_obj <- RunUMAP(qc_filter_obj, dims = 1:10)
+  qc_filter_obj$filter_label <- label
+  return(qc_filter_obj)
+}
+```
+
+Stap 10. Deze functie wordt uitgevoerd op de 3 filter opties.
+```{r include=FALSE}
+
+seurat_strict <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_strict.rds"))
+seurat_mild <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_mild.rds"))
+seurat_nofilter <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_nofilter.rds"))
+
+seurat_strict <- process_seurat(seurat_strict, "Strikt")
+seurat_mild <- process_seurat(seurat_mild, "Mild")
+seurat_nofilter <- process_seurat(seurat_nofilter, "Geen filter")
+```
+
+Stap 11. Van de 3 verschillende filter opties worden UMAPs gemaakt, om het verschil te laten zien. 
+```{r include=FALSE}
+#individule UMAP plots maken 
+umap_strict <- DimPlot(seurat_strict, reduction = "umap") + ggtitle("Strikt filter")
+umap_mild <- DimPlot(seurat_mild, reduction = "umap") + ggtitle("Mild filter")
+umap_nofilter <- DimPlot(seurat_nofilter, reduction = "umap") + ggtitle("Geen filter")
+```
+
+Stap 12. De UMAPs worden samengevoegd en weergeven. 
+```{r echo=FALSE, fig.align='center', fig.height=30, fig.width=12}
+combined_umap <- (umap_strict / umap_mild / umap_nofilter) +
+  plot_annotation(
+    title = "Vergelijking van filtering effect op UMAP", 
+    subtitle = "Strikt, Mild, Geen filtering"
+  )
+print(combined_umap)
+```
+
