@@ -23,7 +23,7 @@ library(here)
 ```
 
 Stap 2: Data wordt geladen
-De data wordt als csv bestand ingeladen en als object bewaard.
+De data wordt als csv bestand ingeladen en als object bewaard. De data is afkomstig van muis embryo's op dag E8.5. 
 ```{r include=FALSE}
 features <- read.csv(here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"))
 samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"))
@@ -45,25 +45,29 @@ counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz")
 ```
 
 Stap 4: Seurat object maken
-Met de packages seurat wordt een object gemaakt waardoor de data gebruikt kan worden voor preprocessing. 
+Met de packages seurat wordt een object gemaakt waardoor de data gebruikt kan worden voor preprocessing en data analyse.
 ```{r include=FALSE}
 seurat <- CreateSeuratObject(counts = counts, 
                              project = "mouse-embryo", 
                              min.cells = 3, 
                              min.features = 200)
 ```
-Het percentage mitochondriale expressie wordt handmatig toegevoegd aan het seurat object
+Het percentage mitochondriale expressie wordt handmatig toegevoegd aan het seurat object omdat deze nodig is voor de kwaliteits check. 
 ```{r include=FALSE}
 seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
 ```
 
-Stap 5:Kwaliteit check met visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Dit wordt geplot in een violin plot zodat kan worden gekeken hoe de data is verdeeld. 
+Stap 5:Kwaliteit check met visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Dit wordt geplot in een violin plot zodat kan worden gekeken hoe de data is verdeeld. Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. Een te hoog aantal kan juist wijzen op dubbele metingen. Veder is het mitochondriaal percentage belangrijk omdat een hoog percentage hiervan wijst op dode of slechte kwaliteit cellen. 
 ```{r echo=FALSE, fig.align='center', fig.width=10, fig.height=5}
 VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 ```
+In deze violoin plots wordt weergeven hoe de data verdeeld is. 
 
+Om te bepalen welke data er meegenomen wordt in verdere analyse worden er verschillende manieren van filteren getest. 
 
 Stap 6. De data kan vervolgens op verschillende manieren worden gefilterd nu is gekozen voor de de opties sctrict, mild en geen filter. Dit is gedaan op basis van de violin plot uit stap 5. 
+
+Er is gekozen voor strikt filtering, milde filtering en geen filtering. Dit wordt gedaan te kijken welke filtering het beste is voor de data. 
 ```{r include=FALSE}
 seurat_strict <- subset(seurat, subset = nFeature_RNA > 2500 & nFeature_RNA < 10000 & percent.mt < 5)
 seurat_mild <- subset(seurat, subset = nFeature_RNA > 2000 & nFeature_RNA < 12000 & percent.mt < 5)
@@ -103,7 +107,7 @@ vln_nofilter <- VlnPlot(seurat_nofilter, features = c("nFeature_RNA", "nCount_RN
 ```
 
 Stap 8. Ook wordt een feature scatter geplot om te kijken naar de correlatie, en of er uitschieters aanwezig zijn. 
-```{r echo=FALSE, fig.align='center', fig.width=12, fig.height=12}
+```{r echo=FALSE, fig.align='center', fig.width=12, fig.height=20}
 fts_strict <- FeatureScatter(seurat_strict, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
   ggtitle("Strikt filter")
 
@@ -115,6 +119,7 @@ fts_nofilter <- FeatureScatter(seurat_nofilter, feature1 = "nCount_RNA", feature
 
 (fts_strict / fts_mild / fts_nofilter)
 ```
+
 
 ```{r include=FALSE}
 # Verwijder de objecten om geheugen vrij te maken
@@ -168,3 +173,8 @@ combined_umap <- (umap_strict / umap_mild / umap_nofilter) +
 print(combined_umap)
 ```
 
+Conclusie: 
+Op basis van deze UMAPS is gekozen voor filter optie mild. Dit omdat met deze manier van filteren zo veel mogelijk data wordt meegenomen wat bijdraagd aan de betrouwbaarheid van de verdere analyse. Bij deze optie zijn er ook duidelijke clusters te zien in vergelijking met de geen filter optie. Ook kunnen door de strenge filtering misschien cellen worden weg gefilterd die zorgen voor intressante variatie.
+
+Discussie:
+Strengere filtering kan wel zorgen voor minder ruis wat kan zorgen voor een duidelijker biologisch verschil. Daarom zou na het ontwikkelen van de analyse pipeline van brie2 is ontwikkeld om zo andere clusters te kunnen vergelijken. 
