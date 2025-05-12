@@ -32,6 +32,7 @@ Project-BRIE2/
 ├── seurat_pipeline/ # R-project met de volledige Seurat pipeline
 ├── brie2_tutorial/ # Python tutorial voor BRIE2
 ├── brie2_pipeline/ # Volledige BRIE2 analysepipeline
+├── scripts_info/ # Instructies voor runnen van de scripts
 
 ### Benodigheden
 - Conda (voor Python-omgevingen: TFProb, briekit en voor R-omgeving project_brie2)
@@ -44,12 +45,6 @@ Project-BRIE2/
 | `seurat_pipeline/` | R       | `project_brie2`    | seurat-4.4.0                            
 | `brie2_tutorial/`  | Python  | `TFProb`           | python-3.11.11                           
 | `brie2_pipeline/`  | Python  | `briekit`, `TFProb`| briekit = python-2.7 en TFProb = python-3.11.11
-
-### Gebruik
-1. Open het Rstudio project 
-2. Activeer het juiste Environment 
-3. Open R o python in de terminal
-4. scripts runnen
 
 
 ## Auteur
