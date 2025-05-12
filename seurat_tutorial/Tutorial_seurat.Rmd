@@ -13,7 +13,10 @@ Om deze deelvraag te beantwoorden zal het volgende flowschema aangehouden worden
 3. De filterstappen worden uitgevoerd
 4. Clusters worden visueel gemaakt
 
-De packages worden geladen. Seurat voor analyse, dplyr voor filteren en selecteren en patchwork voor maken van plots
+De commands worden uitgevoerd in het environment project_brie2. project_brie2 geeft de mogelijkheid om te werken met seurat-4.4.0. Dit script wordt vervolgens gemaakt via de terminal waarin R wordt geopend met het command rmarkdown::render()
+
+
+Eerst worden de packages geladen. Seurat voor analyse, dplyr voor filteren en selecteren en patchwork voor maken van plots.
 ```{r include = FALSE}
 library(Seurat)
 library(dplyr)
@@ -22,18 +25,17 @@ library(patchwork)
 
 
 Stap 1: De data wordt ingeladen 
-de data is gedownload van 10x Genomics. Het bestand is een `tar.gz`bestand dat UMI count matrices bevat. Het is een data set van PMBC cellen waarbij 2700 losse cellen zijn gesequenced met Illumina Next Seq 500. 
-
+de data is gedownload van vignettes/pbmc3k_tutorial. Het is een data set van PMBC cellen waarbij 2700 losse cellen zijn gesequenced met Illumina Next Seq 500. Deze data wordt ingeladen.
 ```{r include=FALSE}
 pbmc.data <- Read10X(data.dir = "~/Project-BRIE2/seurat_tutorial/raw_data/filtered_gene_bc_matrices/hg19/")
 ```
 
-Stap 2.1: Er wordt een Seurat object gemaakt
+Stap 2.1: Er wordt een Seurat object gemaakt. De data wordt vervolgens met behulp van de packages seurat opgeslagen als object e zodat dit gebruikt kan worden voor preprocessing en data analyse.
 ```{r include=FALSE}
 pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
 ```
 
-Stap 2.2: De 0 values worden weg gefilterd en een compactere versie van het object wordt opgeslagen
+Stap 2.2: De 0 values worden weg gefilterd en een compactere versie van het object wordt opgeslagen. Deze worden namelijk niet gebruikt en nemen wel veel geheugen in beslag. 
 ```{r include=FALSE}
 dense.size <- object.size(as.matrix(pbmc.data))
 
@@ -42,20 +44,24 @@ sparse.size <- object.size(pbmc.data)
 dense.size/sparse.size
 ```
 
-Stap 3.1: Kwaliteits check uitvoeren en cellen selecteren voor analyse 
-Het percentage mitochondriale RNA wordt toegevoegd aan het seurat object
+Stap 3.1: Kwaliteits check uitvoeren en cellen selecteren voor analyse. Om de betrouwbaarheid van de analyse te waarborgen wordt eerst gekeken naar welke cellen meegenomen worden voor analyse. 
+Daarovoor wordt eerst het percentage mitochondriale RNA toegevoegd aan het seurat object
 ```{r include=FALSE}
 pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
 ```
 
-Stap 3.2:Visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), 
-en percent.mt (mitochondriale expressie).
-```{r echo=FALSE, fig.align='center'}
+Stap 3.2:Om de kwaliteit van de data te beoordelen wordt deze gevisualiseerd in een violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), 
+en percent.mt (mitochondriale expressie). Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. En te hoog kan wijzen op dubbele metingen. Het mitochondriaal percentage wordt gebruikt om te kijken naar dode of slechte kwaliteit van cellen, een te hoog percentage wijst hier namelijk op. 
+
+
+```{r echo=FALSE, fig.align='center', fig.width=15, fig.height=5}
 VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 ```
+In deze violin plot wordt dit weergeven en is te zien hoe de data verdeeld is. Optimaal is om zo veel mogelijk van deze data mee te nemen. 
 
-Stap 3.3:Visualisatie in Feautre Scatter
-```{r echo=FALSE, fig.align='center'}
+Stap 3.3:Visualisatie in Feautre Scatter. 
+Om de realtie tussen de nCount en percent.mt of nFeature aan te geven wordt de pearson correlatie geanalyseerd. deze is voor nCount en nFeature 0.95 wat aangeeft dat het een sterke correlatie heeft. Voor nCount en percent.mt is deze -0.13 wat wijst op geen directe correlatie.
+```{r echo=FALSE, fig.align='center', fig.width=15, fig.height=5}
 plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 combined <- plot1 + plot2
@@ -64,42 +70,43 @@ print(combined)
 ```
 
 Stap 3.4.Filtering 
-QC filter >200 gene expression (lage of lege droplets hebben vaak weinig genen), <2500 cellen met veel genen (dubbel getelde droplets hebben vaak hoge genen), <5 mitochondriale expression (hogere MT expressie komt vaak door lage kwaliteit van de cel )
+Voor de filtering is bij de tutorial is gekozen voor >200 gene expression (lage of lege droplets hebben vaak weinig genen), <2500 cellen met veel genen (dubbel getelde droplets hebben vaak hoge genen), <5 mitochondriale expression (hogere MT expressie komt vaak door lage kwaliteit van de cel)
 ```{r include=FALSE}
 pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
 ```
 
-Stap 3.5.Normalisatie van data volgens standaard normalisatie
+Stap 3.5.Normalisatie van data volgens standaard normalisatie. 
+Er is een  veel gebruikte schaling methode gebruikt waarbij de feature expressie van iedere cel genormaliseerd wordt voor de normale expressie. Zodat bij analyse gerekend wordt met het zelfde aantal RNA moleculen voor iedere cel. Dit wordt gedaan door daarna te schalen met factor 10000 en log te transformeren. De log transformatie is nodig om te zorgen dan genen met hoge counts vergelijkbaar is met genen met lage counts. Ook helpt het bij het normaal verdelen van de data voor PCA analyse.
 ```{r include=FALSE}
 pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
 ```
  
 Stap 3.6.Feature selection. 
-De genen die veel verschil in expressie hebben per cel worden geselecteerd. 
+De genen die veel verschil in expressie hebben per cel worden geselecteerd. Uit eerder onderzoek is namelijk gebleken dat focus op deze genen helpt bij downstream analyse van biologisch signaal in single cell datasets. Er zijn hier 2000 features voor een data set om de analyse werkbaar te houden voor de server. 
 ```{r include=FALSE}
 pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
 ```
 
-Stap 3.6. De 10 meest variabele genen worden geselecteerd
+Stap 3.6. De 10 meest variabele genen worden geselecteerd. 
 ```{r include=FALSE}
 top10 <- head(VariableFeatures(pbmc), 10)
 ```
 
-Stap 3.7. De 10 meest variable genen worden geplot 
-```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=15, fig.height=10, fig.align='center'}
+Stap 3.7. De 10 meest variable genen worden geplot. Hierin worden zijn de zwarte stippen die niet variabel zijn en niet meegenomen worden bij verdere analyse. De rode stippen zijn de variabele genen en de top tien meest variabele genen zijn aangegeven met een label. 
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=8, fig.align='center'}
 plot1 <- VariableFeaturePlot(pbmc)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
 
 print(plot1 + plot2)
 ```
 
-Stap 3.8. De data wordt geschaalt volgens standaard proceduren voor PCA analyse 
+Stap 3.8. De data wordt geschaalt volgens standaard proceduren voor PCA analyse. Hierbij wordt de expressie van alle genen gelijk zodat de hoeveelheid expressie geen invloed heeft in de verdere analyse. 
 ```{r include=FALSE}
 all.genes <- rownames(pbmc)
 pbmc <- ScaleData(pbmc, features = all.genes)
 ```
 
-Stap 3.9. De PCA analyse wordt uitgevoerd en gevisualiseerd
+Stap 3.9. De PCA analyse wordt uitgevoerd en gevisualiseerd. 
 ```{r echo=FALSE}
 pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
 
@@ -113,8 +120,9 @@ DimPlot(pbmc, reduction = "pca") + NoLegend()
 ```{r echo=FALSE, fig.width=20, fig.height=15}
 DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)
 ```
+De uitgevoerde PCA analyse wordt op verschillende manieren gevisuliseerd. 
 
-Stap 3.10.De dimentie van het dataset wordt bepaald
+Stap 3.10.De dimentie van het dataset wordt bepaald. Hierin worden de PC's weergeven  Vanuit deze afbeelding wordt bepaald welke soorten expressie patronen er zijn binnen het data set. De elbowplot wordt vervolgens gebruikt om te bepalen welke PC's er worden meegenomen in verdere analyse. 
 ```{r echo=FALSE, fig.align='center'}
 ElbowPlot(pbmc)
 ```
@@ -129,14 +137,14 @@ pbmc <- FindClusters(pbmc, resolution = 0.5)
 ```
 
 Stap 4.1 De UMAP maken.
-De gevormde clusters worden weergeven aan de hand van 10 PCs. 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-pbmc <- RunUMAP(pbmc, dims = 1:10)
+De gevormde clusters worden weergeven aan de hand van 10 PCs. In deze UMAP wordt weergeven welke clusters er zijn en hoe deze zijn verdeeld. 
+```{r echo=FALSE, message=FALSE, fig.align='center', warning=FALSE}
+pbmc <- RunUMAP(pbmc, dims = 1:15)
 DimPlot(pbmc, reduction = "umap")
 ```
 
 Stap 5.1 Cluster biomarkers vinden
-Alle markers van alle clusters worden gevonden en alleen de positieve worden gerapporteerd.
+Alle markers van alle clusters worden gevonden en alleen de positieve worden gerapporteerd. Dit is belangrijk om te bepalen wat voor cellen er in de clusters zitten, en kan gebruikt worden om te bepalen welke clusters biologisch relevant zijn voor verder onderzoek. 
 ```{r echo=FALSE, message=FALSE}
 pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE)
 pbmc.markers %>%
@@ -146,7 +154,6 @@ pbmc.markers %>%
 
 Stap 5.2 Een heatmap wordt gemaakt voor de top 20 markers.
 Er wordt aangegeven in welke clusters de genen voorkomen. 
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=20, fig.height=15, fig.align='center'}
 pbmc.markers %>%
     group_by(cluster) %>%
@@ -156,7 +163,7 @@ pbmc.markers %>%
 DoHeatmap(pbmc, features = top10$gene) + NoLegend()
 ```
 
-Stap 5.3. De cell type worden aan de clusters gekoppeld 
+Stap 5.3. De cell type worden aan de clusters gekoppeld. 
 ```{r include=FALSE}
 new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
     "NK", "DC", "Platelet")
@@ -169,7 +176,7 @@ Stap 5.4. Er wordt een UMAP gemaakt waarin wordt aangegeven welk cluster welk ce
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(ggplot2)
 plot <- DimPlot(pbmc, reduction = "umap", label = TRUE, label.size = 4.5) + xlab("UMAP 1") + ylab("UMAP 2") +
-    theme(axis.title = element_text(size = 18), legend.text = element_text(size = 18)) + guides(colour = guide_legend(override.aes = list(size = 10)))
+    theme(axis.title = element_text(size = 18), legend.text = element_text(size = 10)) + guides(colour = guide_legend(override.aes = list(size = 8)))
 print(plot)
 ```
 
