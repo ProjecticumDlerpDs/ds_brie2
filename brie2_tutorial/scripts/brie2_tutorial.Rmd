@@ -7,6 +7,155 @@ output: html_document
 
 Deelvraag: Kan ik door het volgen van een tutorial met BRIE2 data anlayse uitvoeren?
 
-De data is handmatig gedownload 
+De data die is gebruikt voor het uitvoeren van deze tutorial is van Falcao et al, 2018. Het bevat 2208 muizencellen die onderzocht zijn met SMART-seq2 waarbij de ene helft experimentele auto0immuun encefalomyelitis (EAE) cellen zijn. Deze cellen bootsen multiple scleorsis na, de andere helft zijn controle cellen. Het wordt gebruikt om na te bootsen hoe BRIE2 gebruikt kan worden of differntiele splicing events tussen twee groepen cellen te detecteren en hoe de splicing ratio gebruikt kan worden om celtypen en ziete omstandigheden te voorspellen. 
 
-Eerst worden de benodigde packages geladen. 
+
+Eerst worden de packages geladen die nodig zijn voor het uitvoeren van de analyse. dit gaat o.a. om umap, os, brie, numpy, pandas, scanpy en matplotlib.pypolot. 
+```{python, echo=FALSE}
+import umap
+import os
+import brie
+import numpy as np
+import pandas as pd
+import scanpy as sc
+import matplotlib.pyplot as plt
+print(brie.__version__)
+```
+
+Vervolgens wordt het pad waar de data is opgeslagen vast gelegd, dit wordt gedaan met dat_dir in de map raw_data.
+```{python}
+dat_dir = '/home/anne.brussaard/Project-BRIE2/brie2_tutorial/raw_data/msEAE/'
+```
+
+BRIE2 optie 1 
+Hierna volgt de eerste mogelijkheid van analyseren met BRIE2. Optie 1= differential splicing events. Deze modus gebruikt statistische analyse (regressie) om de splicing in de twee groepen te vergelijken. In deze modus wordt ook rekening gehouden met celtype zodat het effect apart kan worden bekeken per celtype. 
+```{python, echo=FALSE}
+adata = sc.read_h5ad(dat_dir + "/brie_quant_cell.h5ad")
+adata
+
+adata.uns['brie_param']
+
+#Gene index veranderen van Ensemebl id naar gene name 
+adata.var['old_index'] = adata.var.index
+new_index = [adata.var.GeneName[i] + adata.var.GeneID[i][18:] for i in range(adata.shape[1])]
+adata.var.index = new_index
+
+#bij index is bytes, veranderen naar str
+adata.var.index = [x.decode('utf-8') if type(x) == bytes else x for x in adata.var.index]
+adata.obs.index = [x.decode('utf-8') if type(x) == bytes else x for x in adata.obs.index]
+
+#cell annotaties van input covariates
+adata.obs['MS'] = ['EAE' if x else 'Ctrl' for x in adata.obsm['Xc'][:, 0]]
+adata.obs['isCD1'] = ['CD1_%d' %x for x in adata.obsm['Xc'][:, 1]]
+```
+De resultaten van optie 1 worden eerst weergeven in een volcano plot. In deze plot is Cell_coeff een statistische maat die aangeeft hoe sterk de splicing (PSI) veranderd tussen twee groepen. Een positieve Cell_coeff geeft aan dat de PSI waarden in de EAE-groep hoger is dan in de controle groep. PSI geeft hierin aan wat de kans is dat een bepaald splicing event voorkomt.
+
+```{python}
+brie.pl.volcano(adata, y='ELBO_gain', log_y=False, n_anno=16, score_red=7, adjust=True)
+plt.xlabel('cell_coeff: effect size on logit(Psi)')
+plt.title("MS differential splicing")
+```
+
+Vervolgens worden de splicing events met een ELBO_gain van > 7 geselteerd dat zijn de differntiale splicing events. Er wordt geken naar hoeveel events dat zijn en hoeveel genen ze representeren zodat deze gebruikt kunnen worden in verdere analyse. 
+```{python}
+DSEs = adata.var.index[adata.varm['ELBO_gain'][:, 0] >= 7]
+len(DSEs), len(np.unique([x.split('.')[0] for x in DSEs])), adata.shape
+
+adata.uns['Xc_ids']
+```
+
+Daarna volgt de visulisatie van de ruwe counts van de differentiale splicing events (DSE). Dit wordt gedaan om te controleren of wat BRIE2 berekend ook zichtbaar is in de data
+```{python}
+rank_idx = np.argsort(adata.varm['ELBO_gain'][:, 0])[::-1]
+
+fig = plt.figure(figsize=(15, 8))
+brie.pl.counts(adata, genes=list(adata.var.index[rank_idx[:6]]),
+               color='MS', add_val='ELBO_gain', ncol=3, alpha=0.7)
+# fig.savefig(dat_dir + '../../figures/fig_s8_counts.png', dpi=300, bbox_inches='tight')
+plt.show()
+```
+
+Deze plots laten de condities zien met de controle groep blauw en de EAE groep oranje. 
+
+Sommige splicing events kunnen niet direct aan een isovorm worden toegewezen en hebben ambiguous (onduidelijke) reads. De oorzaken hiervan kunnen verschillen van lage kwaliteit, hoge sequencie gelijkenis, geen goed referentiegenoom, of overlappende genen. 
+```{python}
+fig = plt.figure(figsize=(5, 4))
+brie.pl.counts(adata, genes='Ddhd1',
+               color='MS', add_val='ELBO_gain',
+               layers=['isoform1', 'ambiguous'],
+               nrow=1, alpha=0.7)
+plt.show()
+```
+
+BRIE2 optie 2 
+Met de tweede optie van BRIE2 kan de kwantificatie van de splicing events uitgevoerd worden. In dit geval wordt dit gedaan met de aggregatie van de cellen om te voorkomen dat dit invloed heeft op je biologische hypothese. Dit houdt in dat de cellen als groepen worden geanalyseerd en niet als individule cellen zodat gekeken kan worden naar verschillende celtypes.
+
+```{python}
+#aggregatie selecteren 
+adata_aggr = sc.read_h5ad(dat_dir + "/brie_quant_aggr.h5ad")
+adata_aggr
+
+#gene index veranderen 
+print(np.mean(adata.var['old_index'] == adata_aggr.var.index))
+adata_aggr.var.index = adata.var.index
+
+#van bytes naar str veranderen 
+adata_aggr.var.index = [x.decode('utf-8') if type(x) == bytes else x
+                        for x in adata_aggr.var.index]
+adata_aggr.obs.index = [x.decode('utf-8') if type(x) == bytes else x
+                        for x in adata_aggr.obs.index]
+                        
+# meta data en gen level annotaties toevoegen. 
+print(np.mean(adata.obs.index == adata_aggr.obs.index))
+adata_aggr.obs['MS'] = adata.obs['MS'].copy()
+adata_aggr.obs['isCD1'] = adata.obs['isCD1'].copy()
+
+dat_umap = np.genfromtxt(dat_dir + '/cell_X_umap.tsv', dtype='str', delimiter='\t')
+
+mm = brie.match(adata_aggr.obs.index, dat_umap[:, 0])
+idx = mm[mm != None].astype(int)
+
+adata_aggr = adata_aggr[mm != None, :]
+adata_aggr.obsm['X_GEX_UMAP'] = dat_umap[idx, 1:3].astype(float)
+adata_aggr.obs['cluster'] = dat_umap[idx, 3]
+adata_aggr.obs['combine'] = [adata_aggr.obs['cluster'][i] + '-' + adata_aggr.obs['MS'][i]
+                            for i in range(adata_aggr.shape[0])]
+adata_aggr
+```
+
+Ook worden de cellen gefilterd. 
+
+```{python}
+plt.hist(np.log10(adata_aggr.X.sum(1)[:, 0] + 1), bins=30)
+plt.xlabel("log10(total reads)")
+plt.ylabel("Cell frequency")
+plt.show()
+
+min_reads = 3000
+
+adata_aggr = adata_aggr[adata_aggr.X.sum(axis=1) > min_reads, :]
+adata = adata[adata_aggr.obs.index, :]
+```
+
+Daarna worden de splicing fenotypes gevisualiseerd op basis van gen expressie in een Umap. 
+Eerst met de verdeling van clusters en visualisatie van de EAE groep en controle groep
+```{python}
+sc.pl.scatter(adata_aggr, basis='GEX_UMAP', color=['cluster', 'MS'], size=30)
+```
+
+Vervolgens worden de genen App.As2, Mbp.AS3 en Emc10 weergeven in een scatterplot en violin plot
+```{python}
+sc.pl.scatter(adata_aggr, basis='GEX_UMAP', layers='Psi',
+              color=['App.AS2', 'Mbp.AS3', 'Emc10'],
+              size=50, color_map='terrain_r') #'terrain_r'
+```
+
+
+```{python}
+import seaborn as sns
+
+sc.pl.violin(adata_aggr, ['App.AS2', 'Mbp.AS3', 'Emc10'],
+             layer='Psi', groupby='combine', rotation=90,
+             inner='quartile', palette=sns.color_palette("Paired"))
+```
+
