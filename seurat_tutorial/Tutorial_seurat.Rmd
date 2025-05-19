@@ -21,13 +21,14 @@ Eerst worden de packages geladen. Seurat voor analyse, dplyr voor filteren en se
 library(Seurat)
 library(dplyr)
 library(patchwork)
+library(here)
 ```
 
 
 Stap 1: De data wordt ingeladen 
 de data is gedownload van vignettes/pbmc3k_tutorial. Het is een data set van PMBC cellen waarbij 2700 losse cellen zijn gesequenced met Illumina Next Seq 500. Deze data wordt ingeladen.
 ```{r include=FALSE}
-pbmc.data <- Read10X(data.dir = "~/Project-BRIE2/seurat_tutorial/raw_data/filtered_gene_bc_matrices/hg19/")
+pbmc.data <- Read10X(data.dir = here("seurat_tutorial", "raw_data", "filtered_gene_bc_matrices", "hg19"))
 ```
 
 Stap 2.1: Er wordt een Seurat object gemaakt. De data wordt vervolgens met behulp van de packages seurat opgeslagen als object e zodat dit gebruikt kan worden voor preprocessing en data analyse.
