@@ -2,16 +2,33 @@
 title: "BRIE2_tutorial"
 author: "Anne Brussaard"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  pdf_document: 
+    number_sections: true
 ---
+```{r include=FALSE}
+library(reticulate)
+use_condaenv("TFProb", required = TRUE)
+library(here)
 
-Deelvraag: Kan ik door het volgen van een tutorial met BRIE2 data anlayse uitvoeren?
+dat_dir <- here::here("brie2_tutorial", "raw_data", "msEAE")
+dat_dir <- as.character(dat_dir)
 
-De data die is gebruikt voor het uitvoeren van deze tutorial is van Falcao et al, 2018. Het bevat 2208 muizencellen die onderzocht zijn met SMART-seq2 waarbij de ene helft experimentele auto0immuun encefalomyelitis (EAE) cellen zijn. Deze cellen bootsen multiple scleorsis na, de andere helft zijn controle cellen. Het wordt gebruikt om na te bootsen hoe BRIE2 gebruikt kan worden of differntiele splicing events tussen twee groepen cellen te detecteren en hoe de splicing ratio gebruikt kan worden om celtypen en ziete omstandigheden te voorspellen. 
+py$dat_dir <- dat_dir
+```
+
+```{python include=FALSE}
+dat_dir = r.dat_dir
+print(dat_dir)
+```
+
+## Deelvraag: Kan ik door het volgen van een tutorial met BRIE2 data anlayse uitvoeren?
+
+De data die is gebruikt voor het uitvoeren van deze tutorial is van Falcao et al, 2018. Het bevat 2208 muizencellen die onderzocht zijn met SMART-seq2 waarbij de ene helft experimentele auto0immuun encefalomyelitis (EAE) cellen zijn. Deze cellen bootsen multiple scleorsis na, de andere helft zijn controle cellen. Het wordt gebruikt om na te bootsen hoe BRIE2 gebruikt kan worden of differntiele splicing events tussen twee groepen cellen te detecteren.
 
 
 Eerst worden de packages geladen die nodig zijn voor het uitvoeren van de analyse. dit gaat o.a. om umap, os, brie, numpy, pandas, scanpy en matplotlib.pypolot. 
-```{python, echo=FALSE}
+```{python, include=FALSE, warning=FALSE, message=FALSE}
 import umap
 import os
 import brie
@@ -22,15 +39,12 @@ import matplotlib.pyplot as plt
 print(brie.__version__)
 ```
 
-Vervolgens wordt het pad waar de data is opgeslagen vast gelegd, dit wordt gedaan met dat_dir in de map raw_data.
-```{python}
-dat_dir = '/home/anne.brussaard/Project-BRIE2/brie2_tutorial/raw_data/msEAE/'
-```
 
-BRIE2 optie 1 
+## BRIE2 optie 1 
 Hierna volgt de eerste mogelijkheid van analyseren met BRIE2. Optie 1= differential splicing events. Deze modus gebruikt statistische analyse (regressie) om de splicing in de twee groepen te vergelijken. In deze modus wordt ook rekening gehouden met celtype zodat het effect apart kan worden bekeken per celtype. 
-```{python, echo=FALSE}
-adata = sc.read_h5ad(dat_dir + "/brie_quant_cell.h5ad")
+```{python, include=FALSE}
+file_path = os.path.join(r.dat_dir, "brie_quant_cell.h5ad")
+adata = sc.read_h5ad(file_path)
 adata
 
 adata.uns['brie_param']
@@ -50,14 +64,14 @@ adata.obs['isCD1'] = ['CD1_%d' %x for x in adata.obsm['Xc'][:, 1]]
 ```
 De resultaten van optie 1 worden eerst weergeven in een volcano plot. In deze plot is Cell_coeff een statistische maat die aangeeft hoe sterk de splicing (PSI) veranderd tussen twee groepen. Een positieve Cell_coeff geeft aan dat de PSI waarden in de EAE-groep hoger is dan in de controle groep. PSI geeft hierin aan wat de kans is dat een bepaald splicing event voorkomt.
 
-```{python}
+```{python, echo=FALSE, fig.height=6, fig.width=7}
 brie.pl.volcano(adata, y='ELBO_gain', log_y=False, n_anno=16, score_red=7, adjust=True)
 plt.xlabel('cell_coeff: effect size on logit(Psi)')
 plt.title("MS differential splicing")
 ```
 
 Vervolgens worden de splicing events met een ELBO_gain van > 7 geselteerd dat zijn de differntiale splicing events. Er wordt geken naar hoeveel events dat zijn en hoeveel genen ze representeren zodat deze gebruikt kunnen worden in verdere analyse. 
-```{python}
+```{python, include=FALSE}
 DSEs = adata.var.index[adata.varm['ELBO_gain'][:, 0] >= 7]
 len(DSEs), len(np.unique([x.split('.')[0] for x in DSEs])), adata.shape
 
@@ -65,7 +79,7 @@ adata.uns['Xc_ids']
 ```
 
 Daarna volgt de visulisatie van de ruwe counts van de differentiale splicing events (DSE). Dit wordt gedaan om te controleren of wat BRIE2 berekend ook zichtbaar is in de data
-```{python}
+```{python, echo=FALSE, fig.align='center'}
 rank_idx = np.argsort(adata.varm['ELBO_gain'][:, 0])[::-1]
 
 fig = plt.figure(figsize=(15, 8))
@@ -78,7 +92,7 @@ plt.show()
 Deze plots laten de condities zien met de controle groep blauw en de EAE groep oranje. 
 
 Sommige splicing events kunnen niet direct aan een isovorm worden toegewezen en hebben ambiguous (onduidelijke) reads. De oorzaken hiervan kunnen verschillen van lage kwaliteit, hoge sequencie gelijkenis, geen goed referentiegenoom, of overlappende genen. 
-```{python}
+```{python, echo=FALSE, fig.align='center'}
 fig = plt.figure(figsize=(5, 4))
 brie.pl.counts(adata, genes='Ddhd1',
                color='MS', add_val='ELBO_gain',
@@ -87,12 +101,13 @@ brie.pl.counts(adata, genes='Ddhd1',
 plt.show()
 ```
 
-BRIE2 optie 2 
+## BRIE2 optie 2 
 Met de tweede optie van BRIE2 kan de kwantificatie van de splicing events uitgevoerd worden. In dit geval wordt dit gedaan met de aggregatie van de cellen om te voorkomen dat dit invloed heeft op je biologische hypothese. Dit houdt in dat de cellen als groepen worden geanalyseerd en niet als individule cellen zodat gekeken kan worden naar verschillende celtypes.
 
-```{python}
+```{python, include=FALSE}
 #aggregatie selecteren 
-adata_aggr = sc.read_h5ad(dat_dir + "/brie_quant_aggr.h5ad")
+file_path2 = os.path.join(r.dat_dir, "brie_quant_aggr.h5ad")
+adata_aggr = sc.read_h5ad(file_path2)
 adata_aggr
 
 #gene index veranderen 
@@ -110,7 +125,8 @@ print(np.mean(adata.obs.index == adata_aggr.obs.index))
 adata_aggr.obs['MS'] = adata.obs['MS'].copy()
 adata_aggr.obs['isCD1'] = adata.obs['isCD1'].copy()
 
-dat_umap = np.genfromtxt(dat_dir + '/cell_X_umap.tsv', dtype='str', delimiter='\t')
+dat_umap_path = os.path.join(dat_dir, 'cell_X_umap.tsv')
+dat_umap = np.genfromtxt(dat_umap_path, dtype='str', delimiter='\t')
 
 mm = brie.match(adata_aggr.obs.index, dat_umap[:, 0])
 idx = mm[mm != None].astype(int)
@@ -123,14 +139,16 @@ adata_aggr.obs['combine'] = [adata_aggr.obs['cluster'][i] + '-' + adata_aggr.obs
 adata_aggr
 ```
 
-Ook worden de cellen gefilterd. 
-
-```{python}
+Ook worden de cellen gefilterd op basis van leesdiepte. In de onderstaande histogram zijn het aantal reads per cel te zien. Hierna worden alleen de cellen met voldoende reads (>3000 reads) meegenomen om te zorgen voor hogere betrouwbaarheid.
+```{python, echo=FALSE, fig.align='center'}
 plt.hist(np.log10(adata_aggr.X.sum(1)[:, 0] + 1), bins=30)
 plt.xlabel("log10(total reads)")
 plt.ylabel("Cell frequency")
 plt.show()
+```
 
+
+```{python, include=FALSE}
 min_reads = 3000
 
 adata_aggr = adata_aggr[adata_aggr.X.sum(axis=1) > min_reads, :]
@@ -138,24 +156,90 @@ adata = adata[adata_aggr.obs.index, :]
 ```
 
 Daarna worden de splicing fenotypes gevisualiseerd op basis van gen expressie in een Umap. 
-Eerst met de verdeling van clusters en visualisatie van de EAE groep en controle groep
-```{python}
-sc.pl.scatter(adata_aggr, basis='GEX_UMAP', color=['cluster', 'MS'], size=30)
+Eerst met de verdeling van clusters en visualisatie van de EAE groep en controle groep. Iedere punt in de UMAP is een cel en zo wordt de verdeling van de cellen over de condities bekeken. Te zien is dat er 3 PC's zijn met een grote ratio, deze zullen gebruik worden voor verdere analyse. 
+```{python, echo=FALSE, warning=FALSE, message=FALSE}
+sc.pl.scatter(adata_aggr, basis='GEX_UMAP', color=['cluster', 'MS'], size=60)
 ```
 
-Vervolgens worden de genen App.As2, Mbp.AS3 en Emc10 weergeven in een scatterplot en violin plot
-```{python}
+Vervolgens worden de genen App.As2, Mbp.AS3 en Emc10 weergeven in een scatterplot en violin plot. 
+Voor de genen App.AS2, Mbp.AS3 en Emc10 wordt de geschatte splicing weergeven. Hierin laat de kleur zien wat de geschatte PSI waarde is en kan gekeken worden waar bepaalde splicing events meer of minder voorkomen. 
+```{python, echo=FALSE, warning=FALSE, message=FALSE}
 sc.pl.scatter(adata_aggr, basis='GEX_UMAP', layers='Psi',
               color=['App.AS2', 'Mbp.AS3', 'Emc10'],
-              size=50, color_map='terrain_r') #'terrain_r'
+              size=60, color_map='terrain_r') #'terrain_r'
 ```
 
 
-```{python}
+```{python, include=FALSE, warning=FALSE, message=FALSE}
 import seaborn as sns
+```
 
+In de violinplots wordt per groep en conditie de verdeling in PSI waarde weergeven.
+```{python, echo=FALSE, waring=FALSE, message=FALSE}
 sc.pl.violin(adata_aggr, ['App.AS2', 'Mbp.AS3', 'Emc10'],
              layer='Psi', groupby='combine', rotation=90,
              inner='quartile', palette=sns.color_palette("Paired"))
 ```
 
+Voor verdere downstream analyse worden alleen de splicing events meegenomen die gedetecteerd zijn als differentaile splicing events. 
+
+```{python, echo=FALSE, warning=FALSE, message=FALSE}
+adata_psi = adata_aggr.copy()
+
+adata_psi.layers['X'] = adata_psi.X.astype(np.float64)
+adata_psi.X = adata_psi.layers['Psi']
+adata_psi.shape
+
+sc.tl.pca(adata_psi, svd_solver='arpack')
+adata_psi.obs['Psi_PC1'] = adata_psi.obsm['X_pca'][:, 0]
+adata_psi.obs['Psi_PC2'] = adata_psi.obsm['X_pca'][:, 1]
+adata_psi.obs['Psi_PC3'] = adata_psi.obsm['X_pca'][:, 2]
+fig = plt.figure(figsize=(5, 3.7), dpi=80)
+ax = plt.subplot(1, 1, 1)
+sc.pl.pca(adata_psi, color='combine', size=30, show=False, ax=ax,
+          palette=sns.color_palette("Paired"))
+plt.xlabel("PC1: %.1f%%" %(adata_psi.uns['pca']['variance_ratio'][0] * 100))
+plt.ylabel("PC2: %.1f%%" %(adata_psi.uns['pca']['variance_ratio'][1] * 100))
+# plt.legend(loc=1)
+plt.show()
+
+```
+
+Ook wordt de variance ratio tussen de PSI waarden berekend. Om dit te doen is eerst de splicing data omgezet naar componenten (PC). Dit houdt in dat er gekeken wordt welke PSI waarden verschillen tussen de twee groepen en statistisch relevant zijn.  
+
+```{python, echo=FALSE, warning=FALSE, message=FALSE}
+sc.pl.pca_variance_ratio(adata_psi)
+```
+
+Dit kan vervolgens gebruikt worden om clusters te maken op basis van splicing in plaats van expressie. 
+In de onderstaande UMAP is te zien wat de clusters zijn op basis van PSI waarden. Hieruit kan ook gezien worden of de splicing overeenkomt met de MS/controle.
+
+```{python, echo=FALSE, warning=FALSE, message=FALSE}
+sc.pp.neighbors(adata_psi, n_neighbors=10, n_pcs=20, method='umap')
+sc.tl.umap(adata_psi)
+
+sc.pl.umap(adata_psi, color=['MS', 'combine'], size=60)
+```
+
+Hier wordt dit uitgezet voor de genen App.AS2, Mbp.AS3 en Emc10
+
+```{python echo=FALSE, warning=FALSE, message=FALSE, fig.align='center'}
+sc.pl.umap(adata_psi, color=['App.AS2', 'Mbp.AS3', 'Emc10'], size=50, cmap='terrain_r')
+```
+
+Daarna wordt de UMAP nogmaals gemaakt, dit keer bevat de UMAP alleen cellen met een betrouwbare PSI, voor een naukeurige visualisatie van de splicing.
+
+```{python echo=FALSE}
+adata_tmp = adata_psi[adata_psi[:, 'App.AS2'].layers['Psi_95CI'] < 0.3, :]
+adata_tmp.X = adata_tmp.layers['Psi']
+sc.pl.umap(adata_tmp, color=['App.AS2', 'Mbp.AS3', 'Emc10'], size=50, cmap='terrain_r')
+```
+
+Vervolgens zijn de eerste 3 PC geplot tegen de oorspronkelijke genexpressie UMAP. Dit kan laten zien of de splicing overeenkomt met het expressie cluster.
+
+```{python echo=FALSE}
+sc.pl.scatter(adata_psi, basis='GEX_UMAP', color=['Psi_PC1', 'Psi_PC2', 'Psi_PC3'], size=50)
+```
+
+## Conclusie
+In deze tutorial is BRIE2 toegepast op een dataset van muizencellen om differentiële splicing te analyseren tussen controle- en EAE-cellen. Zowel op individueel celniveau als op geaggregeerd niveau kon BRIE2 onderscheid maken tussen splicing events. 
