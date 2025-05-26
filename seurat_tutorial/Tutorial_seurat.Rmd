@@ -2,10 +2,14 @@
 title: "Seurat tutorial"
 author: "Anne Brussaard"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: 
+  pdf_document: 
+    fig_caption: true
+    fig_crop: false
+    number_sections: true
 ---
 
-Deelvraag: Kan ik door het volgen van een tutorial met Seurat data preprocessing en visualisatie uitvoeren?
+Deelvraag: Kan ik door het volgen van een tutorial met Seurat data preprocessing en visualisatie uitvoeren op de uitgreikte data?
 Om deze deelvraag te beantwoorden zal het volgende flowschema aangehouden worden.
 
 1. De data wordt geladen
@@ -46,13 +50,13 @@ dense.size/sparse.size
 ```
 
 Stap 3.1: Kwaliteits check uitvoeren en cellen selecteren voor analyse. Om de betrouwbaarheid van de analyse te waarborgen wordt eerst gekeken naar welke cellen meegenomen worden voor analyse. 
-Daarovoor wordt eerst het percentage mitochondriale RNA toegevoegd aan het seurat object
+Daarvoor wordt eerst het percentage mitochondriale RNA toegevoegd aan het seurat object die los is aangeleverd vanuit de tutorial. 
 ```{r include=FALSE}
 pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
 ```
 
 Stap 3.2:Om de kwaliteit van de data te beoordelen wordt deze gevisualiseerd in een violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), 
-en percent.mt (mitochondriale expressie). Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. En te hoog kan wijzen op dubbele metingen. Het mitochondriaal percentage wordt gebruikt om te kijken naar dode of slechte kwaliteit van cellen, een te hoog percentage wijst hier namelijk op. 
+en percent.mt (mitochondriale expressie). Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. En te hoog kan wijzen op dubbele metingen. Het mitochondriaal percentage wordt gebruikt om te kijken naar dode of slechte kwaliteit van cellen, een te hoog percentage wijst hier namelijk op. In deze data ligt de mitochondriale expressie voor de meeste cellen bij 5%. De cellen die daar boven liggen worden dus als minder betrouwbaar gezien. 
 
 
 ```{r echo=FALSE, fig.align='center', fig.width=15, fig.height=5}
@@ -61,7 +65,7 @@ VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3
 In deze violin plot wordt dit weergeven en is te zien hoe de data verdeeld is. Optimaal is om zo veel mogelijk van deze data mee te nemen. 
 
 Stap 3.3:Visualisatie in Feautre Scatter. 
-Om de realtie tussen de nCount en percent.mt of nFeature aan te geven wordt de pearson correlatie geanalyseerd. deze is voor nCount en nFeature 0.95 wat aangeeft dat het een sterke correlatie heeft. Voor nCount en percent.mt is deze -0.13 wat wijst op geen directe correlatie.
+Om de relatie tussen de nCount en percent.mt of nFeature aan te geven wordt de pearson correlatie geanalyseerd. deze is voor nCount en nFeature 0.95 wat aangeeft dat het een sterke correlatie heeft. Voor nCount en percent.mt is deze -0.13 wat wijst op geen directe correlatie. De correlatie tussen nFeature en percentage.mt wordt hierin niet meegenomen omdat een hoog percentage MT kan samengaan met een zowel hoog of laag nFeature terwijl slechte kwaliteit vaak een hoge MT en een lage nCount heeft. Daarom is de correlatie van nFeature met percentage MT minder informatief over de kwaliteit. 
 ```{r echo=FALSE, fig.align='center', fig.width=15, fig.height=5}
 plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
@@ -100,6 +104,7 @@ plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
 
 print(plot1 + plot2)
 ```
+* Deze stap had eerst moeten worden uitgevoerd maar omdat de tutorial dienst als verkennen/verdiepen van de tool heb ik voor nu dit laten staan. Normaal gesproken moet inderdaad eerst de normalisatie uitgevoerd worden en daarna het selecteren van de meest variabelen cellen zodat deze op een eerlijke manier worden verkegen. 
 
 Stap 3.8. De data wordt geschaalt volgens standaard proceduren voor PCA analyse. Hierbij wordt de expressie van alle genen gelijk zodat de hoeveelheid expressie geen invloed heeft in de verdere analyse. 
 ```{r include=FALSE}
@@ -107,7 +112,7 @@ all.genes <- rownames(pbmc)
 pbmc <- ScaleData(pbmc, features = all.genes)
 ```
 
-Stap 3.9. De PCA analyse wordt uitgevoerd en gevisualiseerd. 
+Stap 3.9. De PCA analyse wordt uitgevoerd en gevisualiseerd. Dit wordt gedaan om de data te analyseren op genexpressie patronen. Daarna kan dan bepaald worden hoeveel van deze patronen worden 
 ```{r echo=FALSE}
 pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
 

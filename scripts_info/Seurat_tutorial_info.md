@@ -29,7 +29,7 @@ Of
 1. conda activate project_brie2
 2. werk vanuit de map ~/Project-BRIE2/seurat_tutorial
 3. activeer R in de terminal 
-4. Voor `Tutorial_seurat.Rmd` voer uit in de terminal rmarkdown::render("Tutorial_analysis.Rmd")
+4. Voor `Tutorial_seurat.Rmd` voer uit in de terminal rmarkdown::render("Tutorial_seurat.Rmd")
 5. voor losse scripts voer de commands uit in de terminal
 
 ### Output 
