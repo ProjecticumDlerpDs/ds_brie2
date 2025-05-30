@@ -112,7 +112,7 @@ all.genes <- rownames(pbmc)
 pbmc <- ScaleData(pbmc, features = all.genes)
 ```
 
-Stap 3.9. De PCA analyse wordt uitgevoerd en gevisualiseerd. Dit wordt gedaan om de data te analyseren op genexpressie patronen. Daarna kan dan bepaald worden hoeveel van deze patronen worden 
+Stap 3.9. De PCA analyse wordt uitgevoerd en gevisualiseerd. Dit wordt gedaan om de data te analyseren op genexpressie patronen. Daarna kan dan bepaald worden hoeveel van deze patronen worden meegenomen in verdere analyse. 
 ```{r echo=FALSE}
 pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
 
