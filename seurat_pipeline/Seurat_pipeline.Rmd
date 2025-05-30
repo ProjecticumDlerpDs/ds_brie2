@@ -6,6 +6,8 @@ output:
   pdf_document: 
     fig_caption: true
     number_sections: true
+    fig_width: 5
+    fig_height: 4
 ---
 # Seurat analyse op dataset E8.5
 
@@ -26,6 +28,11 @@ Om deze vragen te kunnen beantwoorden zal de volgende workflow worden gevolgd.
 8. Selectie clusters
 
 De commands worden uitgevoerd in het environment project_brie2. project_brie2 geeft de mogelijkheid om te werken met seurat-4.4.0. Dit script wordt vervolgens gemaakt via de terminal waarin R wordt geopend met het command rmarkdown::render()
+
+```{r include=FALSE}
+.libPaths("/home/anne.brussaard/miniconda3/envs/project_brie2/lib/R/library")
+```
+
 
 ## Analyse 
 Stap 1.1: Eerst worden de packages laden. De packages dplyr, ggplot2, pheatmap, tidyr, RColorBrewer, ggrepel, Seurat, Matrix, patchwork en here worden geladen.
@@ -85,7 +92,7 @@ seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
 
 Stap 3.1:Kwaliteit check met visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. En te hoog kan wijzen op dubbele metingen. Het mitochondriaal percentage wordt gebruikt om te kijken naar dode of slechte kwaliteit van cellen, een te hoog percentage wijst hier namelijk op. In deze data ligt de mitochondriale expressie voor de meeste cellen bij 5%. De cellen die daar boven liggen worden dus als minder betrouwbaar gezien.Het hele dataset van tijdspunt E8.5 wordt weergeven.  
 
-```{r echo=FALSE, fig.align='center', fig.width=10, fig.height=5, fig.cap="Dataset E8.5 in Violin Plots"}
+```{r echo=FALSE, fig.align='right', fig.width=6, fig.height=4, fig.cap="Dataset E8.5 in Violin Plots"}
 VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 ```
 
@@ -101,17 +108,16 @@ cnt_mt <- FeatureScatter(seurat, feature1 = "nCount_RNA", feature2 = "percent.mt
 print(cnt_mt)
 ```
 
-## Nog conclusie trekken over kwaliteit
+### Deel conclusie
+uit de twee scatterplots is te zien dat de correlatie tussen nFeature_RNA en nCount_RNA 0,96 is. Dit betekend een zeer sterke positieve correlatie tussen het aantal genen en totaal aantal moleculen. Dit betekend goede kwaliteit van de cellen want de meeste cellen met veel RNA en inhoud bregen veel unieke genen tot expressie. Dit is wat de verwachting is bij goede kwaliteit single cell data. 
+Voor de tweede scatterplot is een correlatie tussen percent.mt en nCount van -0,06 te zien. Dit betekend een licht negatieve correlatie tussen het percentage mitochondriale expressie en totaal aantal moleculen. Er is dus geen sterke relatie tussen de twee. Dit wijst op goede kwaliteit van de cellen omdat er niet veel cellen zijn die voornamelijk mitochondriale expressie hebben. 
+Hieruit kunnen we concluderen dat de data die gebruikt wordt afkomstig is van goede kwaliteit cellen. 
 
-
- 
 Stap 3.3:Filteren van de data. 
 Op basis van de eerder uitgevoerde filter analyse is gekozen voor de volgende filtering nFeature_RNA \<2000 \>12000 zo worden de lege en dubbele metingen niet meegenomen. percent.mt \<5 zo worden cellen die dood zijn of stress hebben niet meegenomen. nCount wordt hierin niet meegenomen omdat deze alleen een indicatie geeft over de kwaliteit maar niet meegenomen in verder analyse omdat het geen informatie bevat over genexpressie. 
 ```{r include=FALSE}
 seurat <- subset(seurat, subset = nFeature_RNA > 2000 & nFeature_RNA < 12000 & percent.mt < 5)
 ```
-
-
 
 Stap 4.1:Normalisatie van de data. 
 Er is een  veel gebruikte schaling methode gebruikt waarbij de feature expressie van iedere cel genormaliseerd wordt voor de normale expressie. Zodat bij analyse gerekend wordt met het zelfde aantal RNA moleculen voor iedere cel. Dit wordt gedaan door daarna te schalen met factor 10000 en log te transformeren. De log transformatie is nodig om te zorgen dan genen met hoge counts vergelijkbaar is met genen met lage counts. Ook helpt het bij het normaal verdelen van de data voor PCA analyse.
@@ -162,7 +168,8 @@ Deze PCA analyse wordt gevisualiseerd in een Elbowplot. Op de X-as worden de ver
 ElbowPlot(seurat)
 ```
 
-### Deel conclusie: Vanuit de eerder gevolgde tutorial is geadviseerd om 10 PC's mee te nemen in cluster analyse voor betrouwbaar resultaat. Ook is te zien in de elbowplot dat de "elbow" afneemt na 10 PC's. Daarom zullen de eerste 10 PC's worden meegenomen in de verder cluster analyse.
+### Deel conclusie:
+Vanuit de eerder gevolgde tutorial is geadviseerd om 10 PC's mee te nemen in cluster analyse voor betrouwbaar resultaat. Ook is te zien in de elbowplot dat de "elbow" afneemt na 10 PC's. Daarom zullen de eerste 10 PC's worden meegenomen in  de verder cluster analyse.
 
 Stap 6.1: Clusteren Er zal cluster analyse worden uitgevoerd op de eerste 10 PC's.
 Dit houdt in dat er op basis van gen expressie patronen groepen gemaakt worden. 
@@ -180,14 +187,16 @@ seurat <- RunUMAP(seurat, dims = 1:10)
 umap_plot <- DimPlot(seurat, reduction = "umap")
 print(umap_plot)  
 ```
+
 In de UMAP is iedere punt 1 cel, de kleur is het cluster en de afstand tussen de cellen is hoeveel verschil er is in genexpressie patroon.
 Dit betekend dat hoe dichter de cellen bij elkaar liggen hoe meer de expressie op elkaar lijkt. Toch is er dan wel verschil waardoor ze behoren tot een ander cluster. Daarom worden vaak clusters gekozen voor verdere analyse die dicht bij elkaar liggen. 
 In deze UMAP worden 17 verschillende clusters weergeven.
 
-### Deelvraag: Welke clusters worden geselecteerd voor analyse in BRIE2?
+
+
+### Deelvraag:Welke clusters worden geselecteerd voor analyse in BRIE2?
 In eerste instantie is gekozen voor cluster 5 en 9 omdat deze clusters dicht bij elkaar liggen, er kan dan gekeken worden of er verschil is in alternatieve splicing. 
 Maar er zal dan ook eerst gekeken worden of er in deze clusters dezelfde genen voorkomen die in alternatieve splicing van elkaar kunnen verschillen. 
-
 Om te kunnen bepalen welke clusters meegenomen worden in analyse met BRIE2 zal nu verder gekeken worden naar de biomarkers.
 
 Stap 8.1. Biomarkers markers vinden in alle clusters en alleen de positieve worden geraporteerd.
@@ -200,32 +209,32 @@ seurat.markers %>%
   dplyr::filter(avg_log2FC > 1 )
 ```
 
-Stap 8.2 Top 10 genen van cluster 5 en 9 selecteren. 
+Stap 8.2 Top 15 genen van cluster 5 en 9 selecteren. 
 De top 10 wordt geselecteerd om te kijken of er overlap is tussen de cluster genen. 
 
 ```{r include=FALSE }
 top_genen <- seurat.markers %>%
   filter(cluster %in% c(5, 9)) %>%
   group_by(cluster) %>%
-  top_n(n = 10, wt = avg_log2FC) %>%
+  top_n(n = 15, wt = avg_log2FC) %>%
   pull(gene) %>%
   unique()
 ```
 
-Stap 8.3: Top 10 genen van custer 5 en 9 plotten
+Stap 8.3: Top 15 genen van custer 5 en 9 plotten
 
-```{r echo=FALSE, fig.align='center', fig.width=10, fig.height=5, fig.cap="Top 10 genen cluster 5 en 9"}
-DotPlot(seurat, features = top_genen) + RotatedAxis()
+```{r echo=FALSE, fig.align='center', fig.width=6, fig.height=4, fig.cap="Top 15 genen cluster 5 en 9", warning=FALSE, message=FALSE}
+seurat_5_9 <- subset(seurat, idents = c(5, 9))
+
+DotPlot(seurat_5_9, features = top_genen) + RotatedAxis()
 ```
 
 In de Dotplot afbeelding zijn op de X-as de genen weergeven, op de Y-as zijn de clusters weergeven. De grote van het bolletje staat voor in hoeveel procent van de cellen in dat cluster dat gen tot expressie komt en de kleur intensiteit voor de hoeveelheid expressie van dit gen van het totaal.
 
 ### Deelconclusie: 
-Op basis van deze resultaten zijn cluster 
-
+Op basis van deze resultaten kan geconcludeerd worden dat cluster 5 en 9 geschikt zijn voor verdere analyse. Te zien is dat een aantal genen in beide clusters voorkomen. Dit geeft de mogelijkheid om te kijken naar verschillende isovormen of splicing events van deze genen in beide clusters. 
 
 
 ## Conclusie 
-Het data set is van goede kwaliteit
-De juiste hoeveelheid PC zijn geselecteerd
-Op basis hiervan konde clusters geselcteerd worden voor verdere analyse in BRIE2
+Op basis van deze experimenten is geconstateerd dat de data van goede kwaliteit is en gebruikt kan worden voor analyse. Verder is bepaald dat er 10 PC patronen worden meegenomen voor het vormen van de clusters. Ook is bepaald dat cluster 5 en 9 gebruikt zullen worden voor verdere analyse in BRIE2, 
+
