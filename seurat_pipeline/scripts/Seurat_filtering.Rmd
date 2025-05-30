@@ -2,11 +2,27 @@
 title: "Seurat_filtering.Rmd"
 author: "Anne Brussaard"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: 
+  pdf_document: 
+    fig_caption: true
+    fig_width: 4
+    fig_height: 4
+    number_sections: true
 ---
+# Filterings opties bekijken in Seurat
 
-Om te kijken naar de effecten van filtering op een UMAP worden verschillende manieren van filtering met elkaar vergeleken. 
+## info 
+De commands worden uitgevoerd in het environment project_brie2. project_brie2 geeft de mogelijkheid om te werken met seurat-4.4.0. Dit script wordt vervolgens gemaakt via de terminal waarin R wordt geopend met het command rmarkdown::render()
 
+
+## Deelvraag
+Wat zijn de effecten van filtering van nFeature en percent.mt op de clustering van de data gevisualiseerd in een UMAP?
+
+```{r include=FALSE}
+.libPaths("/home/anne.brussaard/miniconda3/envs/project_brie2/lib/R/library")
+```
+
+### Analyse 
 Stap 1: Packages laden. 
 De packages dplyr, ggplot2, pheatmap, tidyr, RColorBrewer, ggrepel, Seurat, Matrix, patchwork en here worden geladen. Deze packages worden met de library functie toegepast in analyse.
 ```{r include=FALSE}
@@ -58,16 +74,14 @@ seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
 ```
 
 Stap 5:Kwaliteit check met visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Dit wordt geplot in een violin plot zodat kan worden gekeken hoe de data is verdeeld. Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. Een te hoog aantal kan juist wijzen op dubbele metingen. Veder is het mitochondriaal percentage belangrijk omdat een hoog percentage hiervan wijst op dode of slechte kwaliteit cellen. 
-```{r echo=FALSE, fig.align='center', fig.width=10, fig.height=5}
+```{r echo=FALSE, fig.align='right', fig.width=7, fig.height=4, fig.cap="Visualisatie kwaliteit dataset E8.5"}
 VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 ```
-In deze violoin plots wordt weergeven hoe de data verdeeld is. 
+In deze violoin plots wordt weergeven hoe de data verdeeld is.Om te bepalen welke data er meegenomen wordt in verdere analyse worden er verschillende manieren van filteren getest. 
 
-Om te bepalen welke data er meegenomen wordt in verdere analyse worden er verschillende manieren van filteren getest. 
+Stap 6. De data kan vervolgens op verschillende manieren worden gefilterd nu is gekozen voor de de opties sctrict, mild en geen filter. Dit is gedaan op basis van de violin plot uit stap 5, er zijn namelijk niet hele grote verschillen in de data. 
 
-Stap 6. De data kan vervolgens op verschillende manieren worden gefilterd nu is gekozen voor de de opties sctrict, mild en geen filter. Dit is gedaan op basis van de violin plot uit stap 5. 
-
-Er is gekozen voor strikt filtering, milde filtering en geen filtering. Dit wordt gedaan te kijken welke filtering het beste is voor de data. 
+Er is gekozen voor strikt filtering, milde filtering en geen filtering. Dit wordt gedaan te kijken welke filtering het beste is voor de data. De verschil in filtering zit op de nFeature en percent.mt. Er is voor gekozen om de percent.mt niet te testen, dit omdat 5% vanuit de literatuur wordt aanreikt als cutoff waarden voor muizen cellen. De nCount wordt ook niet meegenomen in deze filter stap omdat deze data geen genexpressie informatie bevat en niet verder wordt gebruikt in de berekening. 
 ```{r include=FALSE}
 seurat_strict <- subset(seurat, subset = nFeature_RNA > 2500 & nFeature_RNA < 10000 & percent.mt < 5)
 seurat_mild <- subset(seurat, subset = nFeature_RNA > 2000 & nFeature_RNA < 12000 & percent.mt < 5)
@@ -92,8 +106,8 @@ seurat_mild <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_mild.rds
 seurat_nofilter <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_nofilter.rds"))
 ```
 
-Stap 7. Opnieuw worden de violin plots gemaakt om het effect van de filter stappen te zien op de data. 
-```{r echo=FALSE, fig.align='center', fig.width=12, fig.height=12}
+Stap 7. Opnieuw worden de violin plots gemaakt om het effect van de filter stappen te zien op de data. zie figuur 2. 
+```{r echo=FALSE, fig.align='right', fig.width=7, fig.height=9, fig.cap="Verschillende filterings opties (strikt, mild en geen filter)"}
 vln_strict <- VlnPlot(seurat_strict, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) + 
   plot_annotation(title = "Strikt filter")
 
@@ -106,8 +120,8 @@ vln_nofilter <- VlnPlot(seurat_nofilter, features = c("nFeature_RNA", "nCount_RN
 (vln_strict / vln_mild / vln_nofilter)
 ```
 
-Stap 8. Ook wordt een feature scatter geplot om te kijken naar de correlatie, en of er uitschieters aanwezig zijn. 
-```{r echo=FALSE, fig.align='center', fig.width=12, fig.height=20}
+Stap 8. Ook wordt een feature scatter geplot om te kijken naar de correlatie, en of er uitschieters aanwezig zijn. zie figuur 3.
+```{r echo=FALSE, fig.align='right', fig.width=7, fig.height=9, fig.cap="Correlatie analyse"}
 fts_strict <- FeatureScatter(seurat_strict, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
   ggtitle("Strikt filter")
 
@@ -120,6 +134,7 @@ fts_nofilter <- FeatureScatter(seurat_nofilter, feature1 = "nCount_RNA", feature
 (fts_strict / fts_mild / fts_nofilter)
 ```
 
+Bij een sterke positieve correlatie is de kwaliteit van de cellen goed. Dit omdat er bij een hoog aantal moleculen ook een hoge genexpressie is. 
 
 ```{r include=FALSE}
 # Verwijder de objecten om geheugen vrij te maken
@@ -128,6 +143,7 @@ gc()
 ```
 
 Stap 9. Vervolgens wordt een functie geschreven om de de verder seurat analyse uit te voeren op de verschillende filter mogelijkheden. 
+Hierin wordt de data genormaliseerd, er variabele genen geselecteerd, de data geschaald, een pca analyse uitgevoerd er clusters gemaakt en deze clusters worden uitgezet in UMAP's. 
 ```{r include=FALSE}
 process_seurat <- function(qc_filter_obj, label) {
   qc_filter_obj <- NormalizeData(qc_filter_obj)
@@ -163,18 +179,18 @@ umap_mild <- DimPlot(seurat_mild, reduction = "umap") + ggtitle("Mild filter")
 umap_nofilter <- DimPlot(seurat_nofilter, reduction = "umap") + ggtitle("Geen filter")
 ```
 
-Stap 12. De UMAPs worden samengevoegd en weergeven. 
-```{r echo=FALSE, fig.align='center', fig.height=30, fig.width=12}
-combined_umap <- (umap_strict / umap_mild / umap_nofilter) +
-  plot_annotation(
-    title = "Vergelijking van filtering effect op UMAP", 
-    subtitle = "Strikt, Mild, Geen filtering"
-  )
-print(combined_umap)
+Stap 12. De UMAPs weergeven. zie figuur 4 (strikt), figuur 5 (mild) en figuur 6 (geen filter)
+
+
+```{r echo=FALSE, fig.align='center', fig.height=7, fig.width=7, fig.cap="UMAP filter opties dataset E8.5"}
+print(umap_strict)
+print(umap_mild)
+print(umap_nofilter)
 ```
 
-Conclusie: 
-Op basis van deze UMAPS is gekozen voor filter optie mild. Dit omdat met deze manier van filteren zo veel mogelijk data wordt meegenomen wat bijdraagd aan de betrouwbaarheid van de verdere analyse. Bij deze optie zijn er ook duidelijke clusters te zien in vergelijking met de geen filter optie. Ook kunnen door de strenge filtering misschien cellen worden weg gefilterd die zorgen voor intressante variatie.
 
-Discussie:
-Strengere filtering kan wel zorgen voor minder ruis wat kan zorgen voor een duidelijker biologisch verschil. Daarom zou na het ontwikkelen van de analyse pipeline van brie2 is ontwikkeld om zo andere clusters te kunnen vergelijken. 
+### Conclusie
+In de umaps is te zien dat de milde en strikte filter ongeveer dezelfde clusters bevatten. Toch is op basis van deze UMAPS is gekozen voor filter optie mild. Dit omdat met deze manier van filteren zo veel mogelijk data wordt meegenomen wat bijdraagd aan de betrouwbaarheid van de verdere analyse. Bij deze optie zijn er ook duidelijke clusters te zien in vergelijking met de geen filter optie. Ook kunnen door de strenge filtering misschien cellen worden weg gefilterd die zorgen voor intressante variatie. Verder is het doel van het onderzoek nu om een pipeline op te zetten voor BRIE2, daarom is de biologische relevantie minder prioriteit. 
+
+### Discussie
+Strengere filtering kan wel zorgen voor minder ruis wat kan zorgen voor een duidelijker biologisch verschil. Daarom zou na het ontwikkelen van de analyse pipeline van brie2 is ontwikkeld om zo andere clusters te kunnen vergelijken. Ook zou het nog een mogelijkheid zijn om naar een andere methode van visualisatie. Zo zou er voor specifieke genen het verschil in expressie worden weergeven in een violin plot. Om het hele dataset zichtbaar te maken zou ook nog een heatmap gebruikt kunnen worden, al kunnen onderlinge relaties tussen groepen hier wel minder goed in worden weergeven. Omdat nu gekozen is voor filter mild zou ik wel aanraden om na het opzetten van de pipeline deze opnieuw door te lopen met de strenger gefilterde data om te zien of er verschil is in uitkomst. Ook kan op deze manier de pipeline gecontroleerd. worden. 
