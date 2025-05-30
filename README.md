@@ -17,6 +17,7 @@ Eerst is er een seurat tutorial uitgevoerd. (https://github.com/satijalab/seurat
 Daarna vind inspectie en clustering van het data set E8.5 plaats met de package seurat van [@satijalab/seurat] (https://github.com/satijalab/seurat)
 
 De filtering met seurat is getest en de resultaten hiervan zijn beschreven in een Rmarkdown (https://github.com/ProjecticumDlerpDs/ds_brie2/tree/main/seurat_pipeline/scripts)
+
 Hier is een analyse pipeline voor geschreven:[seurat_pipeline](https://github.com/ProjecticumDlerpDs/ds_brie2/tree/main/seurat_pipeline) 
 
 ## Stap 2 BRIE2
