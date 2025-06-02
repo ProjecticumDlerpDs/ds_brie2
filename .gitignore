@@ -60,3 +60,6 @@ brie2_tutorial/raw_data
 
 # geen rds 
 *.rds
+
+# ruwe data niet pushen 
+brie2_pipeline/raw_data/
