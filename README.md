@@ -8,6 +8,39 @@ In deze Githup repository zullen alle scripts en data worden opgeslagen. Niet al
 ## Reproduceerbaarheid 
 Alle benodigde informatie over de scripts en het uitvoeren hiervan is te vinden in de map scripts_info. Lees deze eerst door voor het uitvoeren van scritps.
 
+## Workflow 
+Deelvraag 1: Hoe werkt Seurat en wat leer ik via de tutorial?
+- Seurat installeren en tutorial volgen 
+- Script: 1setup_conda_env.sh en Tutorial_seurat.pdf
+
+Deelvraag 2: Hoe kan de ruwe data worden gefilterd?
+- Filtering testen 
+- Script: Seurat_filtering.pdf
+
+Deelvraag 3: Hoe kan eigen data worden geclusterd?
+- Kwaliteit van data bepalen
+- Bepalen welke PC worden meegenomen 
+- Script: seurat_pipeline.pdf
+
+Deelvraag 4: Welke clusters gaan we analyseren met BRIE2?
+- Selecteer relevante clusters voor splicing-analyse.
+- Output: seurat_pipeline.pfd
+
+Deelvraag 5: Hoe werkt BRIE2 en wat leer ik via de tutorial?
+- Installeren BRIE2 
+- Doorloop de BRIE2 tutorial met voorbeelddata.
+- Script: 1setup_conda_envs.sh en brie2_tutorial.pdf
+
+Deelvraag 6: Hoe wordt data geschikt voor input van BRIE2?
+- data overzetten van seurat naar brie2
+- Script: seurat_pipeline/bewerkte_data/designmatrix_5vs9.tsv en 2download_fastq.sh
+
+Deelvraag 7: Hoe kan de data geanalyseerd worden in BRIE2
+
+Deelvraag 8: Kan de output van BRIE2 count gekwalificeerd worden?
+
+Deelvraag 9: Hoe kan de data van BRIE2 gevisualiseerd worden?
+
 ## Data
 Het orginele dataset is opgeslagen op de Rstudio Server "/home/data/projecticum/splicing/data"
 
