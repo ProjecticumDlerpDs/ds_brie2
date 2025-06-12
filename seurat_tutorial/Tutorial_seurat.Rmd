@@ -3,10 +3,12 @@ title: "Seurat tutorial"
 author: "Anne Brussaard"
 date: "`r Sys.Date()`"
 output: 
+  
   pdf_document: 
     fig_caption: true
-    fig_crop: false
     number_sections: true
+  word_document: 
+    fig_caption: true
 ---
 # Seurat tutorial 
 Voor dit project is het belangrijk om kennis te maken met de packages Seurat zodat op de juiste manier gebruik gemaakt kan worden van Seurat. 
@@ -24,6 +26,16 @@ De commands worden uitgevoerd in het environment project_brie2. project_brie2 ge
 ## Tutorial
 Deze tutorial is afkomsitg van de githup van de maker van Seurat.  (https://satijalab.org/seurat/articles/pbmc3k_tutorial.html)
 In deze tutorial zal een data set van PBMC cellen die gesequenced zijn geanalyseerd worden met Seurat. 
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  out.width = "85%"
+)
+```
 
 Stap 1.1:Voor we kunnen beginnen wordt gecontroleerd of de packages die we nodig hebben zijn geinstalleerd. 
 ```{r packages check, message=FALSE, warning=FALSE, include=FALSE}
@@ -70,39 +82,32 @@ Daarvoor wordt eerst het percentage mitochondriale RNA toegevoegd aan het seurat
 pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
 ```
 
-Stap 3.2:Om de kwaliteit van de data te beoordelen wordt deze gevisualiseerd in een violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), 
-en percent.mt (mitochondriale expressie). Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. En te hoog kan wijzen op dubbele metingen. Het mitochondriaal percentage wordt gebruikt om te kijken naar dode of slechte kwaliteit van cellen, een te hoog percentage wijst hier namelijk op. In deze data ligt de mitochondriale expressie voor de meeste cellen bij 5%. De cellen die daar boven liggen worden dus als minder betrouwbaar gezien. 
-
-```{r Violin plot dataset, echo=FALSE, fig.align='center', fig.height=5, fig.width=15, fig.cap= totale dataset in violin plot}
+Stap 3.2:Om de kwaliteit van de data te beoordelen wordt deze gevisualiseerd in een violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. En te hoog kan wijzen op dubbele metingen. Het mitochondriaal percentage wordt gebruikt om te kijken naar dode of slechte kwaliteit van cellen, een te hoog percentage wijst hier namelijk op. In deze data ligt de mitochondriale expressie voor de meeste cellen bij 5%. De cellen die daar boven liggen worden dus als minder betrouwbaar gezien. In deze violin plot wordt dit weergeven en is te zien hoe de data verdeeld is. op de Y-as wordt het aantal RNA, moleculen of percentage MT weergeven, op de X-as staat het data set. Op het breedste punt zijn de meeste cellen te zien maar ook hoger in het figuur zijn cellen te zien. Voor de kwaliteit van het data set is het belangrijk om te bepalen of dit afwijkende waarden zijn of dat deze moeten worden uitgesloten van verdere analyse. Optimaal is om zo veel mogelijk van deze data mee te nemen. 
+```{r Violin plot dataset, echo=FALSE, fig.align='center', fig.cap="totale dataset in violin plot"}
 VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 ```
-In deze violin plot wordt dit weergeven en is te zien hoe de data verdeeld is. op de Y-as wordt het aantal RNA, moleculen of percentage MT weergeven, op de X-as staat het data set. Op het breedste punt zijn de meeste cellen te zien maar ook hoger in het figuur zijn cellen te zien. Voor de kwaliteit van het data set is het belangrijk om te bepalen of dit afwijkende waarden zijn of dat deze moeten worden uitgesloten van verdere analyse. Optimaal is om zo veel mogelijk van deze data mee te nemen. 
 
-Stap 3.3:Visualisatie in Feautre Scatter. 
-Om de relatie tussen de nCount en percent.mt of nFeature aan te geven wordt de pearson correlatie geanalyseerd. deze is voor nCount en nFeature 0.95 wat aangeeft dat het een sterke correlatie heeft. Voor nCount en percent.mt is deze -0.13 wat wijst op geen directe correlatie. De correlatie tussen nFeature en percentage.mt wordt hierin niet meegenomen omdat een hoog percentage MT kan samengaan met een zowel hoog of laag nFeature terwijl slechte kwaliteit vaak een hoge MT en een lage nCount heeft. Daarom is de correlatie van nFeature met percentage MT minder informatief over de kwaliteit. 
-```{r data set in feature scatter , echo=FALSE, fig.align='center', fig.height=5, fig.width=15, fig.cap= correlatie dataset }
+
+Stap 3.3:Visualisatie in Feautre Scatter. Om de relatie tussen de nCount en percent.mt of nFeature aan te geven wordt de pearson correlatie geanalyseerd. deze is voor nCount en nFeature 0.95 wat aangeeft dat het een sterke correlatie heeft. Voor nCount en percent.mt is deze -0.13 wat wijst op geen directe correlatie. De correlatie tussen nFeature en percentage.mt wordt hierin niet meegenomen omdat een hoog percentage MT kan samengaan met een zowel hoog of laag nFeature terwijl slechte kwaliteit vaak een hoge MT en een lage nCount heeft. Daarom is de correlatie van nFeature met percentage MT minder informatief over de kwaliteit. In deze afbeelding zien we op de Y-as het percentage MT en nFeature tegen nCount op de X-as. 
+```{r data set in feature scatter, echo=FALSE, fig.align='center', fig.cap="correlatie dataset", fig.pos="ht"}
 plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 combined <- plot1 + plot2
-
 print(combined)
 ```
-In deze afbeelding zien we op de Y-as het percentage MT en nFeature tegen nCount op de X-as. 
 
-Stap 3.4.Filtering 
-Voor de filtering is bij de tutorial is gekozen voor >200 gene expression (lage of lege droplets hebben vaak weinig genen), <2500 cellen met veel genen (dubbel getelde droplets hebben vaak hoge genen), <5 mitochondriale expression (hogere MT expressie komt vaak door lage kwaliteit van de cel)
+
+Stap 3.4.Filtering Voor de filtering is bij de tutorial is gekozen voor >200 gene expression (lage of lege droplets hebben vaak weinig genen), <2500 cellen met veel genen (dubbel getelde droplets hebben vaak hoge genen), <5 mitochondriale expression (hogere MT expressie komt vaak door lage kwaliteit van de cel)
 ```{r filtering dataset, include=FALSE}
 pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
 ```
 
-Stap 3.5.Normalisatie van data volgens standaard normalisatie. 
-Er is een  veel gebruikte schaling methode gebruikt waarbij de feature expressie van iedere cel genormaliseerd wordt voor de normale expressie. Zodat bij analyse gerekend wordt met het zelfde aantal RNA moleculen voor iedere cel. Dit wordt gedaan door daarna te schalen met factor 10000 en log te transformeren. De log transformatie is nodig om te zorgen dan genen met hoge counts vergelijkbaar is met genen met lage counts. Ook helpt het bij het normaal verdelen van de data voor PCA analyse.
+Stap 3.5.Normalisatie van data volgens standaard normalisatie. Er is een  veel gebruikte schaling methode gebruikt waarbij de feature expressie van iedere cel genormaliseerd wordt voor de normale expressie. Zodat bij analyse gerekend wordt met het zelfde aantal RNA moleculen voor iedere cel. Dit wordt gedaan door daarna te schalen met factor 10000 en log te transformeren. De log transformatie is nodig om te zorgen dan genen met hoge counts vergelijkbaar is met genen met lage counts. Ook helpt het bij het normaal verdelen van de data voor PCA analyse.
 ```{r Normalisatie , include=FALSE}
 pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
 ```
  
-Stap 3.6.Feature selection. 
-De genen die veel verschil in expressie hebben per cel worden geselecteerd. Uit eerder onderzoek is namelijk gebleken dat focus op deze genen helpt bij downstream analyse van biologisch signaal in single cell datasets. Er zijn hier 2000 features voor een data set om de analyse werkbaar te houden voor de server. 
+Stap 3.6.Feature selection. De genen die veel verschil in expressie hebben per cel worden geselecteerd. Uit eerder onderzoek is namelijk gebleken dat focus op deze genen helpt bij downstream analyse van biologisch signaal in single cell datasets. Er zijn hier 2000 features voor een data set om de analyse werkbaar te houden voor de server. 
 ```{r variabele genen selecteren , include=FALSE}
 pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
 ```
@@ -112,12 +117,10 @@ Stap 3.6. De 10 meest variabele genen worden geselecteerd.
 top10 <- head(VariableFeatures(pbmc), 10)
 ```
 
-Stap 3.7. De 10 meest variable genen worden geplot. Hierin worden zijn de zwarte stippen die niet variabel zijn en niet meegenomen worden bij verdere analyse. De rode stippen zijn de variabele genen en de top tien meest variabele genen zijn aangegeven met een label. 
-Op de Y-as wordt de variatie (verschil in expressie) weergeven, en op de X-as de gemiddelde expressie. 
-```{r visualisatie variabele genen, echo=FALSE, fig.align='center', fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.cap= Variable genen}
+Stap 3.7. De 10 meest variable genen worden geplot. Hierin worden zijn de zwarte stippen die niet variabel zijn en niet meegenomen worden bij verdere analyse. De rode stippen zijn de variabele genen en de top tien meest variabele genen zijn aangegeven met een label.Op de Y-as wordt de variatie (verschil in expressie) weergeven, en op de X-as de gemiddelde expressie. 
+```{r visualisatie variabele genen, echo=FALSE, fig.align='center', fig.cap="Variable genen", message=FALSE, warning=FALSE, fig.width=12}
 plot1 <- VariableFeaturePlot(pbmc)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-
 print(plot1 + plot2)
 ```
 
@@ -128,36 +131,31 @@ pbmc <- ScaleData(pbmc, features = all.genes)
 ```
 
 Stap 3.9. De PCA analyse wordt uitgevoerd en gevisualiseerd. Dit wordt gedaan om de data te analyseren op genexpressie patronen. Daarna kan dan bepaald worden hoeveel van deze patronen worden meegenomen in verdere analyse. 
-```{r PCA analyse, echo=FALSE}
+```{r PCA analyse, include=FALSE}
 pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
 ```
 
-Deze PCA analyse kan op verschillende manieren worden gevisualiseerd. Hieronder zullen een aantal voorbeelden langskomen. 
-Als eerste een VizDim waarin de genen die verantwoordelijk zijn voor een PC worden weergeven. 
-```{r VizDIM plot PCA, echo=FALSE, fig.cap= VizDim plot PCA analyse}
+Deze PCA analyse kan op verschillende manieren worden gevisualiseerd. Hieronder zullen een aantal voorbeelden langskomen. Als eerste een VizDim waarin de genen die verantwoordelijk zijn voor een PC worden weergeven. Op de Y-as worden de namen van de genen weergeven en op de X-as wordt loading waarden weergeven. Dit betekend hoeveel het gen bijdraagd aan een PC. Zo kan je bijvoorbeeld kijken of PC's genen bevatten die biologisch relevant zijn.
+```{r VizDIM plot PCA, echo=FALSE, fig.cap= "VizDim plot PCA analyse", fig.align='center'}
 VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
 ```
-Op de Y-as worden de namen van de genen weergeven en op de X-as wordt loading waarden weergeven. Dit betekend hoeveel het gen bijdraagd aan een PC. Zo kan je bijvoorbeeld kijken of PC's genen bevatten die biologisch relevant zijn. 
 
-Dan volgt de Dimplot. Hierin wordt de data structuur weergeven. 
-Op de Y-as staat tweede hoofdimentie en op de X-as de eerste hoofdementie. In deze weergaven is iedere stip 1 cel. Hieruit kan gezien worden of de PC goed van elkaar gescheiden zijn of juist overlappen. 
-```{r Dimplot PCA analyse, echo=FALSE, fig.cap= Dimplot PCA analyse}
+
+Dan volgt de Dimplot. Hierin wordt de data structuur weergeven. Op de Y-as staat tweede hoofdimentie en op de X-as de eerste hoofdementie. In deze weergaven is iedere stip 1 cel. Hieruit kan gezien worden of de PC goed van elkaar gescheiden zijn of juist overlappen. 
+```{r Dimplot PCA analyse, echo=FALSE, fig.cap= "Dimplot PCA analyse"}
 DimPlot(pbmc, reduction = "pca") + NoLegend()
 ```
 
-Als laatste wordt de Dim Heatmap weergeven. Deze visualisatie geeft een overzicht van welke genen belangrijk zijn voor welk PC en hoe deze tot expressie komen in alle genen. 
-De rijen zijn de genen met hoge loading (bijdragen PC) en de kolommen zijn de cellen. De kleur gele kleur laat de expressie zien. 
-```{r Heatmap PCA analyse, echo=FALSE, fig.height=15, fig.width=20, fig.cap= Heatmap PCA analyse}
+Als laatste wordt de Dim Heatmap weergeven. Deze visualisatie geeft een overzicht van welke genen belangrijk zijn voor welk PC en hoe deze tot expressie komen in alle genen. De rijen zijn de genen met hoge loading (bijdragen PC) en de kolommen zijn de cellen. De kleur gele kleur laat de expressie zien. Deze Heatmap kan laten zien welke genen invloed hebben op de PC's, kijken of er bepaalde clusters of celtype een verschillend patroon hebben of welke PC je wilt gebruiken voor verdere analyse.  
+```{r Heatmap PCA analyse, echo=FALSE, fig.cap="Heatmap PCA analyse", fig.align='center'}
 DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)
 ```
-Deze Heatmap kan laten zien welke genen invloed hebben op de PC's, kijken of er bepaalde clusters of celtype een verschillend patroon hebben of welke PC je wilt gebruiken voor verdere analyse.  
 
-Stap 3.10.De dimentie van het dataset wordt bepaald. Hierin worden de PC's weergeven  Vanuit deze afbeelding wordt bepaald welke soorten expressie patronen er zijn binnen het data set. De elbowplot wordt vervolgens gebruikt om te bepalen welke PC's er worden meegenomen in verdere analyse. 
-```{r Elbowplot PCA analyse, echo=FALSE, fig.align='center', fig.cap= Elbowplot PC's}
+Stap 3.10.De dimentie van het dataset wordt bepaald. Hierin worden de PC's weergeven  Vanuit deze afbeelding wordt bepaald welke soorten expressie patronen er zijn binnen het data set. De elbowplot wordt vervolgens gebruikt om te bepalen welke PC's er worden meegenomen in verdere analyse. Op basis van deze ElbowPlot zijn de eerste 10 PCs geselecteerd omdat de "elbow" stopt rond PC9-10, wat wijst op een signaal in de eerste 10 PCs.
+```{r Elbowplot PCA analyse, echo=FALSE, fig.align='center', fig.cap= "Elbowplot PC's"}
 ElbowPlot(pbmc)
 ```
-Op basis van deze ElbowPlot zijn de eerste 10 PCs geselecteerd omdat de 
-"elbow" stopt rond PC9-10, wat wijst op een signaal in de eerste 10 PCs.
+
 
 Stap 3.11. De cellen worden geclusterd op basis van de eerste 10 PCs. 
 ```{r PC selecteren , include=FALSE}
@@ -167,14 +165,14 @@ pbmc <- FindClusters(pbmc, resolution = 0.5)
 
 Stap 4.1 De UMAP maken.
 De gevormde clusters worden weergeven aan de hand van 10 PCs. In deze UMAP wordt weergeven welke clusters er zijn en hoe deze zijn verdeeld. 
-```{r UMAP maken , echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.cap=UMAP PBMC tutorial}
+```{r UMAP maken , echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.cap= "UMAP PBMC tutorial"}
 pbmc <- RunUMAP(pbmc, dims = 1:15)
 DimPlot(pbmc, reduction = "umap")
 ```
 
 Stap 5.1 Cluster biomarkers vinden
 Alle markers van alle clusters worden gevonden en alleen de positieve worden gerapporteerd. Dit is belangrijk om te bepalen wat voor cellen er in de clusters zitten, en kan gebruikt worden om te bepalen welke clusters biologisch relevant zijn voor verder onderzoek. 
-```{r Biomarkers vinden , echo=FALSE, message=FALSE}
+```{r Biomarkers vinden, message=FALSE, include=FALSE}
 pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE)
 pbmc.markers %>%
     group_by(cluster) %>%
@@ -183,7 +181,7 @@ pbmc.markers %>%
 
 Stap 5.2 Een heatmap wordt gemaakt voor de top 10 markers.
 Er wordt aangegeven in welke clusters de genen voorkomen. 
-```{r Heatmap Markers, echo=FALSE, fig.align='center', fig.height=15, fig.width=20, message=FALSE, warning=FALSE, fig.cap=Heatmap top 10 markers }
+```{r Heatmap Markers, echo=FALSE, fig.align='center', fig.cap="Heatmap top 10 markers", message=FALSE, warning=FALSE}
 pbmc.markers %>%
     group_by(cluster) %>%
     dplyr::filter(avg_log2FC > 1) %>%
@@ -193,7 +191,7 @@ DoHeatmap(pbmc, features = top10$gene) + NoLegend()
 ```
 
 Stap 5.3. De cell type worden aan de clusters gekoppeld. 
-```{r celtype koppelen , include=FALSE}
+```{r celtype koppelen, echo=FALSE}
 new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
     "NK", "DC", "Platelet")
 names(new.cluster.ids) <- levels(pbmc)
@@ -202,7 +200,7 @@ DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
 ```
 
 Stap 5.4. Er wordt een UMAP gemaakt waarin wordt aangegeven welk cluster welk celtype is. 
-```{r UMAP met celtype, echo=FALSE, message=FALSE, warning=FALSE, fig.cap= UMAP met celtype }
+```{r UMAP met celtype, echo=FALSE, message=FALSE, warning=FALSE, fig.cap= "UMAP met celtype", fig.align='center'}
 library(ggplot2)
 plot <- DimPlot(pbmc, reduction = "umap", label = TRUE, label.size = 4.5) + xlab("UMAP 1") + ylab("UMAP 2") +
     theme(axis.title = element_text(size = 18), legend.text = element_text(size = 10)) + guides(colour = guide_legend(override.aes = list(size = 8)))
