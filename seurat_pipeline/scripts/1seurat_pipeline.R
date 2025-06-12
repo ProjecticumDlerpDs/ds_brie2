@@ -10,21 +10,26 @@ library(RColorBrewer)
 library(ggrepel)
 library(Seurat)
 library(Matrix)
+library(patchwork)
+library(here)
+
 
 #data laden 
-features <- read.csv("Project-BRIE2/seurat_pipeline/raw_data/e85_feature_metadata.csv.gz")
-samples <- read.csv("Project-BRIE2/seurat_pipeline/raw_data/e85_sample_metadata.csv")
+features <- read.csv(here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"))
+samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"))
+
 
 #MTX file laden 
-counts <- ReadMtx("Project-BRIE2/seurat_pipeline/raw_data/e85_count_matrix.mtx.gz", 
-                  "Project-BRIE2/seurat_pipeline/raw_data/e85_sample_metadata.csv",
-                  "Project-BRIE2/seurat_pipeline/raw_data/e85_feature_metadata.csv.gz",
+counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz"),
+                  here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"),
+                  here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"),
                   feature.sep = ",",
                   cell.sep = ",",
                   cell.column = 3,
                   feature.column = 1,
                   skip.cell = 1,
-                  skip.feature = 1)
+                  skip.feature = 1
+)
 
 #seurat object maken 
 seurat <- CreateSeuratObject(counts = counts, 
@@ -32,6 +37,9 @@ seurat <- CreateSeuratObject(counts = counts,
                              min.cells = 3, 
                              min.features = 200)
 seurat
+
+#percent.MT wordt toegevoegd
+seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
 
 #QC aantal features, countes en percentage MT
 png("plot.png", width = 800, height = 600)
