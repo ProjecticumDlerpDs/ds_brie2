@@ -11,21 +11,31 @@ output:
 ---
 # Filterings opties bekijken in Seurat
 
+Na het uitvoeren van de tutorial met seurat wordt nu gekeken naar de effecten van filtering van dataset E8.5 (GEO number GSE176588). Deze data is verkregen met VASA sequencing.
+
 ## info 
 De commands worden uitgevoerd in het environment project_brie2. project_brie2 geeft de mogelijkheid om te werken met seurat-4.4.0. Dit script wordt vervolgens gemaakt via de terminal waarin R wordt geopend met het command rmarkdown::render()
-
 
 ## Deelvraag
 Wat zijn de effecten van filtering van nFeature en percent.mt op de clustering van de data gevisualiseerd in een UMAP?
 
-```{r include=FALSE}
-.libPaths("/home/anne.brussaard/miniconda3/envs/project_brie2/lib/R/library")
+### Analyse 
+Stap 1.1: Eerst wordt gecontroleerd of alle packages zijn geinstaleerd, als dit niet zo is wordt dit gedaan. 
+```{r packages check, include=FALSE}
+packages <- c(
+  "dplyr", "ggplot2", "pheatmap", "tidyr", "RColorBrewer", 
+  "ggrepel", "Seurat", "Matrix", "patchwork", "here"
+)
+
+to_install <- packages[!packages %in% rownames(installed.packages())]
+if (length(to_install) > 0) {
+  install.packages(to_install)
+}
 ```
 
-### Analyse 
-Stap 1: Packages laden. 
+Stap 1.2: Packages laden. 
 De packages dplyr, ggplot2, pheatmap, tidyr, RColorBrewer, ggrepel, Seurat, Matrix, patchwork en here worden geladen. Deze packages worden met de library functie toegepast in analyse.
-```{r include=FALSE}
+```{r packages laden , include=FALSE}
 library(dplyr)
 library(ggplot2)
 library(pheatmap)
@@ -40,14 +50,14 @@ library(here)
 
 Stap 2: Data wordt geladen
 De data wordt als csv bestand ingeladen en als object bewaard. De data is afkomstig van muis embryo's op dag E8.5. 
-```{r include=FALSE}
+```{r data inladen , include=FALSE}
 features <- read.csv(here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"))
 samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"))
 ```
 
 Stap 3: MTX files worden geladen
 Het object wordt samen met de matrix tabel ingeladen. 
-```{r include=FALSE}
+```{r MTX files laden , include=FALSE}
 counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz"),
                   here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"),
                   here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"),
@@ -62,33 +72,39 @@ counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz")
 
 Stap 4: Seurat object maken
 Met de packages seurat wordt een object gemaakt waardoor de data gebruikt kan worden voor preprocessing en data analyse.
-```{r include=FALSE}
+```{r Seurat object maken , include=FALSE}
 seurat <- CreateSeuratObject(counts = counts, 
                              project = "mouse-embryo", 
                              min.cells = 3, 
                              min.features = 200)
 ```
 Het percentage mitochondriale expressie wordt handmatig toegevoegd aan het seurat object omdat deze nodig is voor de kwaliteits check. 
-```{r include=FALSE}
+```{r percent.MT toevoegen , include=FALSE}
 seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
 ```
 
 Stap 5:Kwaliteit check met visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Dit wordt geplot in een violin plot zodat kan worden gekeken hoe de data is verdeeld. Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. Een te hoog aantal kan juist wijzen op dubbele metingen. Veder is het mitochondriaal percentage belangrijk omdat een hoog percentage hiervan wijst op dode of slechte kwaliteit cellen. 
-```{r echo=FALSE, fig.align='right', fig.width=7, fig.height=4, fig.cap="Visualisatie kwaliteit dataset E8.5"}
+```{r Violin plot dataset, echo=FALSE, fig.align='right', fig.cap="Visualisatie kwaliteit dataset E8.5", fig.height=4, fig.width=7}
 VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 ```
 In deze violoin plots wordt weergeven hoe de data verdeeld is.Om te bepalen welke data er meegenomen wordt in verdere analyse worden er verschillende manieren van filteren getest. 
+Op de Y-as wordt het aanalt genen, moleculen en percentage MT weergeven. Op de X-as staan de verschillende metingen die plaats hebben gevonden. Vanwege de grote hoeveelheid cellen zijn deze in verschillede metingen gesequenced. 
 
 Stap 6. De data kan vervolgens op verschillende manieren worden gefilterd nu is gekozen voor de de opties sctrict, mild en geen filter. Dit is gedaan op basis van de violin plot uit stap 5, er zijn namelijk niet hele grote verschillen in de data. 
-
 Er is gekozen voor strikt filtering, milde filtering en geen filtering. Dit wordt gedaan te kijken welke filtering het beste is voor de data. De verschil in filtering zit op de nFeature en percent.mt. Er is voor gekozen om de percent.mt niet te testen, dit omdat 5% vanuit de literatuur wordt aanreikt als cutoff waarden voor muizen cellen. De nCount wordt ook niet meegenomen in deze filter stap omdat deze data geen genexpressie informatie bevat en niet verder wordt gebruikt in de berekening. 
-```{r include=FALSE}
+
+De filters zijn:
+Seurat strict = nFeature >2500 <10000 & percent.mt <5%
+Seurat mild = nFeature >2000 <12000 & percent.mt <5%
+Seurat no filter = geen filter 
+
+```{r filtering opties, include=FALSE}
 seurat_strict <- subset(seurat, subset = nFeature_RNA > 2500 & nFeature_RNA < 10000 & percent.mt < 5)
 seurat_mild <- subset(seurat, subset = nFeature_RNA > 2000 & nFeature_RNA < 12000 & percent.mt < 5)
 seurat_nofilter <- seurat # geen filter toegepast
 ```
 
-```{r include=FALSE}
+```{r RDS bestanden oplsaan , include=FALSE}
 # Opslaan als RDS-bestanden
 saveRDS(seurat_strict, file = here("seurat_pipeline", "bewerkte_data", "seurat_strict.rds"))
 saveRDS(seurat_mild, file = here("seurat_pipeline", "bewerkte_data", "seurat_mild.rds"))
@@ -99,7 +115,7 @@ rm(seurat_strict, seurat_mild, seurat_nofilter)
 gc()
 ```
 
-```{r include=FALSE}
+```{r RDS inladen , include=FALSE}
 # Laad de .rds bestanden in
 seurat_strict <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_strict.rds"))
 seurat_mild <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_mild.rds"))
@@ -107,7 +123,7 @@ seurat_nofilter <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_nofi
 ```
 
 Stap 7. Opnieuw worden de violin plots gemaakt om het effect van de filter stappen te zien op de data. zie figuur 2. 
-```{r echo=FALSE, fig.align='right', fig.width=7, fig.height=9, fig.cap="Verschillende filterings opties (strikt, mild en geen filter)"}
+```{r Violin plot filter opties, echo=FALSE, fig.align='right', fig.cap="Verschillende filterings opties (strikt, mild en geen filter)", fig.height=9, fig.width=7}
 vln_strict <- VlnPlot(seurat_strict, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) + 
   plot_annotation(title = "Strikt filter")
 
@@ -120,31 +136,19 @@ vln_nofilter <- VlnPlot(seurat_nofilter, features = c("nFeature_RNA", "nCount_RN
 (vln_strict / vln_mild / vln_nofilter)
 ```
 
-Stap 8. Ook wordt een feature scatter geplot om te kijken naar de correlatie, en of er uitschieters aanwezig zijn. zie figuur 3.
-```{r echo=FALSE, fig.align='right', fig.width=7, fig.height=9, fig.cap="Correlatie analyse"}
-fts_strict <- FeatureScatter(seurat_strict, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
-  ggtitle("Strikt filter")
+We zien nu het effect van de filtering op de data. De bovenste rij is het strikte filter en we zien daar een duidelijk lijn welke cellen wel of niet wordt meegenomen. Bij de tweede rij (het milde filter) is deze lijn een stuk minder strak voor nFeature en nCount. Voor de laatste rij is geen filter gebruikt en bevat dus alle cellen. 
 
-fts_mild <- FeatureScatter(seurat_mild, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
-  ggtitle("Mild filter")
-
-fts_nofilter <- FeatureScatter(seurat_nofilter, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
-  ggtitle("Geen filter")
-
-(fts_strict / fts_mild / fts_nofilter)
-```
-
-Bij een sterke positieve correlatie is de kwaliteit van de cellen goed. Dit omdat er bij een hoog aantal moleculen ook een hoge genexpressie is. 
-
-```{r include=FALSE}
+```{r objecten verwijderen, include=FALSE}
 # Verwijder de objecten om geheugen vrij te maken
 rm(seurat_strict, seurat_mild, seurat_nofilter)
 gc()
 ```
 
-Stap 9. Vervolgens wordt een functie geschreven om de de verder seurat analyse uit te voeren op de verschillende filter mogelijkheden. 
+Stap 8. Vervolgens wordt een functie geschreven om de de verder seurat analyse uit te voeren op de verschillende filter mogelijkheden. 
 Hierin wordt de data genormaliseerd, er variabele genen geselecteerd, de data geschaald, een pca analyse uitgevoerd er clusters gemaakt en deze clusters worden uitgezet in UMAP's. 
-```{r include=FALSE}
+De stappen van de functie zullen niet verder worden gevisualiseerd dit omdat de focus van dit script ligt op het vergelijken van de filter stappen, zo zijn voor alle 3 de datasets 10 PC's meegenomen. 
+
+```{r functie seurat analyse, include=FALSE}
 process_seurat <- function(qc_filter_obj, label) {
   qc_filter_obj <- NormalizeData(qc_filter_obj)
   qc_filter_obj <- FindVariableFeatures(qc_filter_obj, selection.method = "vst", nfeatures = 2000)
@@ -159,8 +163,14 @@ process_seurat <- function(qc_filter_obj, label) {
 }
 ```
 
-Stap 10. Deze functie wordt uitgevoerd op de 3 filter opties.
-```{r include=FALSE}
+Stap 9. Deze functie wordt uitgevoerd op de 3 filter opties.'
+Dit houdt in dat de data wordt genormaliseerd voor nFeature, er wordt een berekening uitgevoerd zodat alle cellen "dezelfde" hoeveelheid expressie hebben zodat ze vergelijkbaar zijn. 
+Vervolgens worden de variabele genen geselecteerd, dat zijn genen die in expressie sterk van elkaar verschillen. 
+Hierna volgt de schaling om te voorkomen dat hoge expressie niveaus invloed hebben op de PC analyse.
+Daarna volgt de PC analyse waarbij wordt gekeken welke soort expressie patronenen er zijn. Hiervan worden er 10 geselcteerd. 
+Daarop volgend is de clustering en wordt de UMAP gemaakt, er wordt gegroepeerd op basis van expressie patroon. 
+
+```{r functie uitvoeren , include=FALSE}
 
 seurat_strict <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_strict.rds"))
 seurat_mild <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_mild.rds"))
@@ -171,18 +181,16 @@ seurat_mild <- process_seurat(seurat_mild, "Mild")
 seurat_nofilter <- process_seurat(seurat_nofilter, "Geen filter")
 ```
 
-Stap 11. Van de 3 verschillende filter opties worden UMAPs gemaakt, om het verschil te laten zien. 
-```{r include=FALSE}
+Stap 10. Van de 3 verschillende filter opties worden UMAPs gemaakt, om het verschil te laten zien. 
+```{r UMAP maken , include=FALSE}
 #individule UMAP plots maken 
 umap_strict <- DimPlot(seurat_strict, reduction = "umap") + ggtitle("Strikt filter")
 umap_mild <- DimPlot(seurat_mild, reduction = "umap") + ggtitle("Mild filter")
 umap_nofilter <- DimPlot(seurat_nofilter, reduction = "umap") + ggtitle("Geen filter")
 ```
 
-Stap 12. De UMAPs weergeven. zie figuur 4 (strikt), figuur 5 (mild) en figuur 6 (geen filter)
-
-
-```{r echo=FALSE, fig.align='center', fig.height=7, fig.width=7, fig.cap="UMAP filter opties dataset E8.5"}
+Stap 11. De UMAPs weergeven. zie figuur 4 (strikt), figuur 5 (mild) en figuur 6 (geen filter)
+```{r UMAP plotten, echo=FALSE, fig.align='center', fig.cap="UMAP filter opties dataset E8.5", fig.height=7, fig.width=7}
 print(umap_strict)
 print(umap_mild)
 print(umap_nofilter)
