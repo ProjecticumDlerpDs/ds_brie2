@@ -32,7 +32,18 @@ Om deze vragen te kunnen beantwoorden zal de volgende workflow worden gevolgd.
 De commands worden uitgevoerd in het environment project_brie2. project_brie2 geeft de mogelijkheid om te werken met seurat-4.4.0. Dit script wordt vervolgens gemaakt via de terminal waarin R wordt geopend met het command rmarkdown::render()
 
 ## Analyse 
+
+```{r settings PDF, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  out.width = "85%"
+)
+```
+
 Stap 1.1: Voor analyse kan uitgevoerd worden moet gecontroleerd worden of alle benodigde packages zijn geinstalleerd, als dit niet het geval is wordt dit gedaan. 
+
 ```{r installeren packages, include=FALSE}
 packages <- c(
   "dplyr", "ggplot2", "pheatmap", "tidyr", "RColorBrewer", 
@@ -46,6 +57,7 @@ if (length(to_install) > 0) {
 ```
 
 Stap 1.2: Dan worden de packages laden. De packages dplyr, ggplot2, pheatmap, tidyr, RColorBrewer, ggrepel, Seurat, Matrix, patchwork en here worden geladen.
+
 ```{r packages laden , include=FALSE}
 library(dplyr)
 library(ggplot2)
@@ -61,6 +73,7 @@ library(here)
 
 Stap 1.3: Data wordt geladen. Het dataset E8.5 wordt gebruikt. Dit data set heeft de meeste data en in deze fase zit de meeste ontwikkeling van de embryo's waarbij veel alternatieve splicing betrokken is. 
 De data is verkregen van de Hu server, de orginele data is te vinden via GEO number GSE176588.
+
 ```{r data inladen , include=FALSE}
 features <- read.csv(here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"))
 samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"))
@@ -68,6 +81,7 @@ samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv
 
 Stap 1.3: MTX files worden geladen.
 MTX files zijn tekst bestanden waarin de data compact wordt opgeslagen. 
+
 ```{r MTX files laden , include=FALSE}
 counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz"),
                   here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"),
@@ -82,6 +96,7 @@ counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz")
 ```
 
 Stap 2.1: Er wordt een Seurat object gemaakt. De data wordt met de packages seurat opgeslagen als object zodat deze gebruikt kan worden voor preprocessing en data analyse.
+
 ```{r Seurat object maken , include=FALSE}
 seurat <- CreateSeuratObject(counts = counts, 
                              project = "mouse-embryo", 
@@ -90,6 +105,7 @@ seurat <- CreateSeuratObject(counts = counts,
 ```
 
 Het percentage mitochondriale expressie wordt handmatig toegevoegd aan het seurat object. Deze data wordt los aangeleverd maar is wel essensieel voor het bepalen van de kwaliteit van de data. 
+
 ```{r percent.MT toevoegen , include=FALSE}
 seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
 ```
@@ -104,35 +120,37 @@ VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol =
 
 In deze violin plot is het volgende te zien. Op de x as zijn de verschillende metingen weergeven die plaats moesten vinden om alle cellen van tijdspunt E8.5 te meten. op de Y-as zijn bij nfeature het aantal unieke genen te zien, bij nCount het aantal moleculen in de cel en bij percent mt het aantal mitochondriale expressie. 
 
-Stap 3.2: Visualisatie in Shatterplot. Om de relatie tussen de nCount en percent.mt of nFeature aan te geven wordt de pearson correlatie geanalyseerd. deze is voor nCount en nFeature 0.95 wat aangeeft dat het een sterke correlatie heeft. Voor nCount en percent.mt is deze -0.13 wat wijst op geen directe correlatie. De correlatie tussen nFeature en percentage.mt wordt hierin niet meegenomen omdat een hoog percentage MT kan samengaan met een zowel hoog of laag nFeature terwijl slechte kwaliteit vaak een hoge MT en een lage nCount heeft. Daarom is de correlatie van nFeature met percentage MT minder informatief over de kwaliteit. 
+Stap 3.2: Visualisatie in Shatterplot. Om de relatie tussen de nCount en percent.mt of nFeature aan te geven wordt de pearson correlatie geanalyseerd. deze is voor nCount en nFeature 0.95 wat aangeeft dat het een sterke correlatie heeft. Voor nCount en percent.mt is deze -0.13 wat wijst op geen directe correlatie. De correlatie tussen nFeature en percentage.mt wordt hierin niet meegenomen omdat een hoog percentage MT kan samengaan met een zowel hoog of laag nFeature terwijl slechte kwaliteit vaak een hoge MT en een lage nCount heeft. Daarom is de correlatie van nFeature met percentage MT minder informatief over de kwaliteit. Zie figuur 2 en 3. 
 
 ```{r corelatie analyse , echo=FALSE, fig.align='center', fig.cap="Correlatie analyse"}
 cnt_ftr <- FeatureScatter(seurat, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 print(cnt_ftr)  
 
 cnt_mt <- FeatureScatter(seurat, feature1 = "nCount_RNA", feature2 = "percent.mt")
-print(cnt_mt)
+cnt_mt
 ```
 
 ### Deel conclusie
-uit de twee scatterplots is te zien dat de correlatie tussen nFeature_RNA en nCount_RNA 0,96 is. Dit betekend een zeer sterke positieve correlatie tussen het aantal genen en totaal aantal moleculen. Dit betekend goede kwaliteit van de cellen want de meeste cellen met veel RNA en inhoud bregen veel unieke genen tot expressie. Dit is wat de verwachting is bij goede kwaliteit single cell data. 
+uit de twee scatterplots (zie figuur 2 en 3) is te zien dat de correlatie tussen nFeature_RNA en nCount_RNA 0,96 is. Dit betekend een zeer sterke positieve correlatie tussen het aantal genen en totaal aantal moleculen. Dit betekend goede kwaliteit van de cellen want de meeste cellen met veel RNA en inhoud bregen veel unieke genen tot expressie. Dit is wat de verwachting is bij goede kwaliteit single cell data. 
 Voor de tweede scatterplot is een correlatie tussen percent.mt en nCount van -0,06 te zien. Dit betekend een licht negatieve correlatie tussen het percentage mitochondriale expressie en totaal aantal moleculen. Er is dus geen sterke relatie tussen de twee. Dit wijst op goede kwaliteit van de cellen omdat er niet veel cellen zijn die voornamelijk mitochondriale expressie hebben. 
 Hieruit kunnen we concluderen dat de data die gebruikt wordt afkomstig is van goede kwaliteit cellen. 
 
 Stap 3.3:Filteren van de data. 
 Op basis van de eerder uitgevoerde filter analyse is gekozen voor de volgende filtering nFeature_RNA \<2000 \>12000 zo worden de lege en dubbele metingen niet meegenomen. percent.mt \<5 zo worden cellen die dood zijn of stress hebben niet meegenomen. nCount wordt hierin niet meegenomen omdat deze alleen een indicatie geeft over de kwaliteit maar niet meegenomen in verder analyse omdat het geen informatie bevat over genexpressie. 
+
 ```{r filtering dataset, include=FALSE}
 seurat <- subset(seurat, subset = nFeature_RNA > 2000 & nFeature_RNA < 12000 & percent.mt < 5)
 ```
 
 Stap 4.1:Normalisatie van de data. 
 Er is een  veel gebruikte schaling methode gebruikt waarbij de feature expressie van iedere cel genormaliseerd wordt voor de normale expressie. Zodat bij analyse gerekend wordt met het zelfde aantal RNA moleculen voor iedere cel. Dit wordt gedaan door daarna te schalen met factor 10000 en log te transformeren. De log transformatie is nodig om te zorgen dan genen met hoge counts vergelijkbaar is met genen met lage counts. Ook helpt het bij het normaal verdelen van de data voor PCA analyse.
+
 ```{r Normalisatie , include=FALSE}
 seurat <- NormalizeData(seurat, normalization.method = "LogNormalize", scale.factor = 10000)
 ```
 
 Stap 4.2: Variabele genen vinden. 
-Deze stap vind plaats om allen de genen te gebruiken die in expressie sterk van elkaar verschillen. Ook wordt op deze manier ruis van genen die constant een lage expressie hebben verwijderd. Dit zorgt voor een efficentere analyse en kan er een beter beeld gevormd worden van welke genexpressie patronenen er zijn. 
+Deze stap vind plaats om allen de genen te gebruiken die in expressie sterk van elkaar verschillen. Ook wordt op deze manier ruis van genen die constant een lage expressie hebben verwijderd. Dit zorgt voor een efficentere analyse en kan er een beter beeld gevormd worden van welke genexpressie patronenen er zijn. Zie figuur 4. 
 
 ```{r variabele genen selecteren , include=FALSE}
 seurat <- FindVariableFeatures(seurat, selection.method = "vst", nfeatures = 2000)
@@ -141,13 +159,13 @@ top10 <- head(VariableFeatures(seurat), 10)
 ```
 
 Stap 4.3: Variable genen plotten.
-Deze variabele genen worden vervolgens weergeven in een plot om een beeld te krijgen van hoeveel genen in de data variabel zijn en wat de top 10 genen zijn. Hierin worden zijn de zwarte stippen die niet variabel zijn en niet meegenomen worden bij verdere analyse. De rode stippen zijn de variabele genen en de top tien meest variabele genen zijn aangegeven met een label. 
+Deze variabele genen worden vervolgens weergeven in een plot om een beeld te krijgen van hoeveel genen in de data variabel zijn en wat de top 10 genen zijn. Hierin worden zijn de zwarte stippen die niet variabel zijn en niet meegenomen worden bij verdere analyse. De rode stippen zijn de variabele genen en de top tien meest variabele genen zijn aangegeven met een label. Zie figuur 4
 
 ```{r visualisatie variabele genen, echo=FALSE, fig.align='center', fig.cap="Variabele genen", warning=FALSE}
 plot1 <- VariableFeaturePlot(seurat)
 
 vrbl <- LabelPoints(plot = plot1, points = top10, repel = TRUE, xnudge = 0, ynudge = 0)
-print(vrbl)  
+vrbl
 ```
 
 
@@ -162,13 +180,14 @@ seurat <- ScaleData(seurat, features = all.genes)
 
 Stap 5.1: PCA analyse uitvoeren
 Single cell data bevat namelijk duizende genen per cel (dimensies) PCA analyse reduceert dit naar kleinere hoofd dimenties. De belangrijkste verschillen tussen cellen worden samengevat waardoor verder analyse efficenter kan verlopen. 
+
 ```{r PCA analyse, include=FALSE}
 seurat <- RunPCA(seurat, features = VariableFeatures(object = seurat))
 print(seurat[["pca"]], dims = 1:5, nfeatures = 5)
 ```
 
 Stap 5.2: PCA analyse plotten.
-Deze PCA analyse wordt gevisualiseerd in een Elbowplot. Op de X-as worden de verschillende PC weergeven en op de Y-as de standaard deviatie. Hoe hoger de standaard deviatie hoe groot het verschil is in PC, dit zijn ook de belangrijkste PC om mee te nemen in verdere analyse. 
+Deze PCA analyse wordt gevisualiseerd in een Elbowplot. Op de X-as worden de verschillende PC weergeven en op de Y-as de standaard deviatie. Hoe hoger de standaard deviatie hoe groot het verschil is in PC, dit zijn ook de belangrijkste PC om mee te nemen in verdere analyse. Zie figuur 5.
 
 ```{r Elbowplot PCA analyse, echo=FALSE, fig.align='center', fig.cap="PC analyse"}
 ElbowPlot(seurat)
@@ -186,12 +205,13 @@ seurat <- FindClusters(seurat, resolution = 0.5)
 ```
 
 Stap 7.1: UMAP clusters
-De manier waarop deze clusters worden weergeven is een UMAP. 
+De manier waarop deze clusters worden weergeven is een UMAP. Zie figuur 6.
+
 ```{r UMAP maken , echo=FALSE, fig.align='center', fig.cap="Clustering E8.5 data", message=FALSE, warning=FALSE}
 seurat <- RunUMAP(seurat, dims = 1:10)
 
 umap_plot <- DimPlot(seurat, reduction = "umap")
-print(umap_plot)  
+umap_plot
 ```
 
 In de UMAP is iedere punt 1 cel, de kleur is het cluster en de afstand tussen de cellen is hoeveel verschil er is in genexpressie patroon.
@@ -217,6 +237,7 @@ seurat.markers %>%
 
 Stap 8.2 genen van cluster 5 en 9 selecteren. 
 Genen worden geselecteerd om te kijken of er overlap is tussen de cluster genen. 
+
 ```{r genen selecteren , include=FALSE}
 top_genen <- seurat.markers %>%
   filter(cluster %in% c(5, 9)) %>%
@@ -227,6 +248,7 @@ top_genen <- seurat.markers %>%
 ```
 
 Stap 8.3: genen van custer 5 en 9 plotten
+
 ```{r genen plotten , echo=FALSE, fig.align='center', fig.cap="genen cluster 5 en 9", fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
 seurat_5_9 <- subset(seurat, idents = c(5, 9))
 
@@ -237,7 +259,6 @@ In de Dotplot afbeelding zijn op de X-as de genen weergeven, op de Y-as zijn de 
 
 ### Deelconclusie: 
 Op basis van deze resultaten kan geconcludeerd worden dat cluster 5 en 9 geschikt zijn voor verdere analyse. Te zien is dat een aantal genen in beide clusters voorkomen. Dit geeft de mogelijkheid om te kijken naar verschillende isovormen of splicing events van deze genen in beide clusters. 
-
 
 ## Conclusie 
 Op basis van deze experimenten is geconstateerd dat de data van goede kwaliteit is en gebruikt kan worden voor analyse. Verder is bepaald dat er 10 PC patronen worden meegenomen voor het vormen van de clusters. Ook is bepaald dat cluster 5 en 9 gebruikt zullen worden voor verdere analyse in BRIE2, 
