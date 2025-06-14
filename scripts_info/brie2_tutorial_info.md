@@ -16,7 +16,7 @@ in Project-BRIE2/brie2_tutorial
 -`scripts/2brie2_tutorial.py`
 
 ## Runnen 
-1. conda activate TFProbe
+1. conda activate TFProb
 2. Voor het script `brie2_tutorial.Rmd` werk vanuit de map ~/Project-BRIE2/brie2_tutorial/scripts
 3. activeer R in de terminal 
 4. Voor Rmarkdown bestanden voer uit in de terminal rmarkdown::render("bestandsnaam")

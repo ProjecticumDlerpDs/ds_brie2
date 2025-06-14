@@ -5,6 +5,8 @@ date: "`r Sys.Date()`"
 output: 
   pdf_document: 
     number_sections: true
+    fig_height: 2.5
+    fig_width: 3
 ---
 ```{r setup werkomgeving , include=FALSE}
 library(reticulate)
@@ -50,6 +52,7 @@ ensure_packages(required_packages)
 ```
 
 Dan worden de packages geladen die nodig zijn voor het uitvoeren van de analyse. dit gaat o.a. om umap, os, brie, numpy, pandas, scanpy en matplotlib.pypolot. 
+
 ```{python packages laden , message=FALSE, warning=FALSE, include=FALSE}
 import umap
 import os
@@ -67,6 +70,7 @@ Hierna volgt de eerste mogelijkheid van analyseren met BRIE2. Optie 1= different
 In het script wordt de output van brie2-quant (anndata) met de kwantificaties van isovormen gevisualiseerd. 
 De output bevat een bestand met annotaties en een bestand met de BRIE2 parameters zoals de elbo_gain en cell_coeff (wordt bij het figuur verder toegelicht). Ook is er een bestand met geninformatie en een bestand met de input. 
 Deze bestanden worden aan elkaar gekoppeld om verder te kunnen visualiseren. 
+
 ```{python celdata laden optie 1, include=FALSE}
 file_path = os.path.join(r.dat_dir, "brie_quant_cell.h5ad")
 adata = sc.read_h5ad(file_path)
@@ -89,19 +93,20 @@ adata.obs['isCD1'] = ['CD1_%d' %x for x in adata.obsm['Xc'][:, 1]]
 ```
 
 De resultaten van optie 1 worden eerst weergeven in een volcano plot. In deze plot is Cell_coeff een statistische maat die aangeeft hoe sterk de splicing (PSI) veranderd tussen twee groepen. Een positieve Cell_coeff geeft aan dat de PSI waarden in de EAE-groep hoger is dan in de controle groep. PSI geeft hierin aan wat de kans is dat een bepaald splicing event voorkomt.De Elbo_gain die op de Y-as wordt weeergeven is een maat voor hoeveel bewijs er is van een verschil in splicing tussen de twee condities. 
-```{python volcano plots, echo=FALSE, fig.height=6, fig.width=7, fig.cap= differential splicing events}
+Zie figuur 1. 
+Op de X-as is dus de effect groote te zien dus hoe sterk de splicing verander door een conditie. positieve waarde weizen op meer splicing voor de groep EAE.
+Op de Y-as is hoe de splicing kan worden verklaard door de ziekte conditie (hoe sterk is het bewijs)
+Je kan hieruit aflezen bij welke genen de splicing wordt verhoogd door EAE (positieve cell_coeff) en werke genen worden onderdrukt door EAE (negatieve cell_coeff)
+De rode stippen zijn geselecteerd omdat er veel "bewijs" is en dus intressant om verder naar te kijken.
+
+```{python volcano plots, echo=FALSE, fig.height=4, fig.width=5, fig.cap= "differential splicing events"}
 brie.pl.volcano(adata, y='ELBO_gain', log_y=False, n_anno=16, score_red=7, adjust=True)
 plt.xlabel('cell_coeff: effect size on logit(Psi)')
 plt.title("MS differential splicing")
 ```
 
-Op de X-as is dus de effect groote te zien dus hoe sterk de splicing verander door een conditie. positieve waarde weizen op meer splicing voor de groep EAE.
-Op de Y-as is hoe de splicing kan worden verklaard door de ziekte conditie (hoe sterk is het bewijs)
-
-Je kan hieruit aflezen bij welke genen de splicing wordt verhoogd door EAE (positieve cell_coeff) en werke genen worden onderdrukt door EAE (negatieve cell_coeff)
-De rode stippen zijn geselecteerd omdat er veel "bewijs" is en dus intressant om verder naar te kijken. 
-
 Vervolgens worden de splicing events met een ELBO_gain van > 7 geselteerd dat zijn de differntiale splicing events. Er wordt geken naar hoeveel events dat zijn en hoeveel genen ze representeren zodat deze gebruikt kunnen worden in verdere analyse. 
+
 ```{python selecteer splicing events, include=FALSE}
 DSEs = adata.var.index[adata.varm['ELBO_gain'][:, 0] >= 7]
 len(DSEs), len(np.unique([x.split('.')[0] for x in DSEs])), adata.shape
@@ -110,21 +115,21 @@ adata.uns['Xc_ids']
 ```
 
 Daarna volgt de visulisatie van de ruwe counts van de differentiale splicing events (DSE). Dit wordt gedaan om te controleren of wat BRIE2 berekend ook zichtbaar is in de data. 
-Dit is belangrijk omdat cell_coeff en elbo_gain berekend zijn met een Bayesiaans model en de ruwe data moet overeen komen met het model. Ook kan zo worden uitgesloten dat een gen significant lijkt omdat 1 cel een extreem hoge count heeft. Om dit te bepalen kijken we naar de verdeling van de splicing per groep. 
-```{python ruwe counts visualiseren, echo=FALSE, fig.align='center', fig.cap=Ruwe counts DSE}
+Dit is belangrijk omdat cell_coeff en elbo_gain berekend zijn met een Bayesiaans model en de ruwe data moet overeen komen met het model. Ook kan zo worden uitgesloten dat een gen significant lijkt omdat 1 cel een extreem hoge count heeft. Om dit te bepalen kijken we naar de verdeling van de splicing per groep. Deze plots laten de condities zien met de controle groep blauw en de EAE groep oranje. Elke stip is een enkele cel, de groote van de stip geeft aan wat de geschatte PSI waarden is (hoevaak wordt een exon geincludeerd).Steeds worden er twee isovormen vergeleken en zien we hoeveel reads er zijn voor de isovormen en in welke groep deze voorkomen. Zie figuur 2. 
+
+```{python ruwe counts visualiseren, echo=FALSE, fig.align='center', fig.cap="Ruwe counts DSE"}
 rank_idx = np.argsort(adata.varm['ELBO_gain'][:, 0])[::-1]
 
-fig = plt.figure(figsize=(15, 8))
+fig = plt.figure(figsize=(6.5, 8.5))
 brie.pl.counts(adata, genes=list(adata.var.index[rank_idx[:6]]),
-               color='MS', add_val='ELBO_gain', ncol=3, alpha=0.7)
+               color='MS', add_val='ELBO_gain', ncol=2, alpha=0.7)
 # fig.savefig(dat_dir + '../../figures/fig_s8_counts.png', dpi=300, bbox_inches='tight')
 plt.show()
 ```
-Deze plots laten de condities zien met de controle groep blauw en de EAE groep oranje. Elke stip is een enkele cel, de groote van de stip geeft aan wat de geschatte PSI waarden is (hoevaak wordt een exon geincludeerd). 
-Steeds worden er twee isovormen vergeleken en zien we hoeveel reads er zijn voor de isovormen en in welke groep deze voorkomen. 
 
-Sommige splicing events kunnen niet direct aan een isovorm worden toegewezen en hebben ambiguous (onduidelijke) reads. De oorzaken hiervan kunnen verschillen van lage kwaliteit, hoge sequencie gelijkenis, geen goed referentiegenoom, of overlappende genen. 
-```{python enkele visualisatie, echo=FALSE, fig.align='center'}
+Sommige splicing events kunnen niet direct aan een isovorm worden toegewezen en hebben ambiguous (onduidelijke) reads. De oorzaken hiervan kunnen verschillen van lage kwaliteit, hoge sequencie gelijkenis, geen goed referentiegenoom, of overlappende genen. Met deze informatie kan verder gekeken worden naar welke pathways de genen betrokken zijn, welke celtype betrokken zijn en visualisatie maken per gen en event om duidelijk maken hoe de splicing verander per cel. Zie figuur 3. 
+
+```{python enkele visualisatie, echo=FALSE, fig.align='center', fig.cap= "Verschillen in splicing van isovorm met onduidelijke reads"}
 fig = plt.figure(figsize=(5, 4))
 brie.pl.counts(adata, genes='Ddhd1',
                color='MS', add_val='ELBO_gain',
@@ -132,8 +137,6 @@ brie.pl.counts(adata, genes='Ddhd1',
                nrow=1, alpha=0.7)
 plt.show()
 ```
-
-Met deze informatie kan verder gekeken worden naar welke pathways de genen betrokken zijn, welke celtype betrokken zijn en visualisatie maken per gen en event om duidelijk maken hoe de splicing verander per cel. 
 
 ## BRIE2 optie 2 
 Met de tweede optie van BRIE2 kan de kwantificatie van de splicing events uitgevoerd worden. In dit geval wordt dit gedaan met de aggregatie van de cellen om te voorkomen dat dit invloed heeft op je biologische hypothese. Dit houdt in dat de cellen als groepen worden geanalyseerd en niet als individule cellen zodat gekeken kan worden naar verschillende celtypes.
@@ -173,14 +176,14 @@ adata_aggr.obs['combine'] = [adata_aggr.obs['cluster'][i] + '-' + adata_aggr.obs
 adata_aggr
 ```
 
-Ook worden de cellen gefilterd op basis van leesdiepte. In de onderstaande histogram zijn het aantal reads per cel te zien. Hierna worden alleen de cellen met voldoende reads (>3000 reads) meegenomen om te zorgen voor hogere betrouwbaarheid.
-```{python cell frequency , echo=FALSE, fig.align='center', fig.cap= cell frequency}
+Ook worden de cellen gefilterd op basis van leesdiepte. In de onderstaande histogram zijn het aantal reads per cel te zien. Hierna worden alleen de cellen met voldoende reads (>3000 reads) meegenomen om te zorgen voor hogere betrouwbaarheid. Zie figuur 4. Er wordt een ondergrens voor het aantal reads ingesteld van 3000. De cellen die minder dan 3000 totale counts hebben worden verwijderd en deze filtering wordt ook toegepast op het oorspronkelijk adata-object zodat de cellen in beide objecten hetzelfde zijn. 
+
+```{python cell frequency , echo=FALSE, fig.align='center', fig.cap= "cell frequency", fig.width=5}
 plt.hist(np.log10(adata_aggr.X.sum(1)[:, 0] + 1), bins=30)
 plt.xlabel("log10(total reads)")
 plt.ylabel("Cell frequency")
 plt.show()
 ```
-
 
 ```{python cellen selecteren , include=FALSE}
 min_reads = 3000
@@ -190,42 +193,41 @@ adata = adata[adata_aggr.obs.index, :]
 ```
 
 Daarna worden de splicing fenotypes gevisualiseerd op basis van gen expressie in een Umap. 
-Eerst met de verdeling van clusters en visualisatie van de EAE groep en controle groep. Iedere punt in de UMAP is een cel en zo wordt de verdeling van de cellen over de condities bekeken. Te zien is dat er 3 PC's zijn met een grote ratio, deze zullen gebruik worden voor verdere analyse. 
-```{python phenotype visualiseren , echo=FALSE, message=FALSE, warning=FALSE, fig.cap= phenotype in gene expression UMAP}
+Eerst met de verdeling van clusters en visualisatie van de EAE groep en controle groep. Iedere punt in de UMAP is een cel en zo wordt de verdeling van de cellen over de condities bekeken. Te zien is dat er 3 PC's zijn met een grote ratio, deze zullen gebruik worden voor verdere analyse. Zie figuur 5. 
+
+```{python phenotype visualiseren, echo=FALSE, fig.align='center', fig.cap="phenotype in gene expression UMAP", message=FALSE, warning=FALSE}
 sc.pl.scatter(adata_aggr, basis='GEX_UMAP', color=['cluster', 'MS'], size=60)
 ```
 
 Vervolgens worden de genen App.As2, Mbp.AS3 en Emc10 weergeven in een scatterplot en violin plot. 
-Voor de genen App.AS2, Mbp.AS3 en Emc10 wordt de geschatte splicing weergeven. Hierin laat de kleur zien wat de geschatte PSI waarde is en kan gekeken worden waar bepaalde splicing events meer of minder voorkomen. 
+Voor de genen App.AS2, Mbp.AS3 en Emc10 wordt de geschatte splicing weergeven. Hierin laat de kleur zien wat de geschatte PSI waarde is en kan gekeken worden waar bepaalde splicing events meer of minder voorkomen. De genen App.As2, Mbp.As3 en Emc10 worden hier weergeven omdat deze biologisch relevant zijn. Dit zijn namelijk genen die betrokken zijn bij eiwit vouwing en myeline afbraak en dus een belangrijk onderdeel van het centrale zenuwstelsel. Het zien of er verschil is in deze genen bij gezond weefsel en "Alzheimer" weefsel kan biologisch zeer intressant zijn. In de UMAPs wordt weergeven wat de verdeling van PSI waarden is van de 3 genen. Zie figuur 6. 
 
-De genen App.As2, Mbp.As3 en Emc10 worden hier weergeven omdat deze biologisch relevant zijn. Dit zijn namelijk genen die betrokken zijn bij eiwit vouwing en myeline afbraak en dus een belangrijk onderdeel van het centrale zenuwstelsel. Het zien of er verschil is in deze genen bij gezond weefsel en "Alzheimer" weefsel kan biologisch zeer intressant zijn. 
-```{python UMAP genen , echo=FALSE, message=FALSE, warning=FALSE, fig.cap= UMAP PSI}
+```{python UMAP genen , echo=FALSE, message=FALSE, warning=FALSE, fig.cap= "UMAP PSI"}
 sc.pl.scatter(adata_aggr, basis='GEX_UMAP', layers='Psi',
               color=['App.AS2', 'Mbp.AS3', 'Emc10'],
               size=60, color_map='terrain_r') #'terrain_r'
 ```
-
-In de UMAPs wordt weergeven wat de verdeling van PSI waarden is van de 3 genen. 
 
 ```{python import seaborn, message=FALSE, warning=FALSE, include=FALSE}
 import seaborn as sns
 ```
 
 In de violinplots wordt per groep en conditie de verdeling in PSI waarde weergeven.
-Hierin wordt de PSI per cluster weergeven. 
-```{python violin plots genen , echo=FALSE, message=FALSE, waring=FALSE, fig.cap= violin plot PSI}
+Hierin wordt de PSI per cluster weergeven. Zie figuur 7. 
+
+```{python violin plots genen, echo=FALSE, fig.cap="violin plot PSI", message=FALSE, warning=FALSE, fig.align= 'center'}
 sc.pl.violin(adata_aggr, ['App.AS2', 'Mbp.AS3', 'Emc10'],
              layer='Psi', groupby='combine', rotation=90,
              inner='quartile', palette=sns.color_palette("Paired"))
 ```
 
-Voor verdere downstream analyse worden alleen de splicing events meegenomen die gedetecteerd zijn als differentaile splicing events. 
-```{python dimension reduction , echo=FALSE, message=FALSE, warning=FALSE, fig.cap= clusters PC}
+Voor verdere downstream analyse worden alleen de splicing events meegenomen die gedetecteerd zijn als differentaile splicing events. Deze UMAP laat de verdeling van cellen zien. Zie figuur 8.  
+
+```{python dimension reduction , echo=FALSE, message=FALSE, warning=FALSE, fig.cap= "clusters PC"}
 adata_psi = adata_aggr.copy()
 
 adata_psi.layers['X'] = adata_psi.X.astype(np.float64)
 adata_psi.X = adata_psi.layers['Psi']
-adata_psi.shape
 
 sc.tl.pca(adata_psi, svd_solver='arpack')
 adata_psi.obs['Psi_PC1'] = adata_psi.obsm['X_pca'][:, 0]
@@ -241,40 +243,39 @@ plt.ylabel("PC2: %.1f%%" %(adata_psi.uns['pca']['variance_ratio'][1] * 100))
 plt.show()
 
 ```
-Deze UMAP laat de verdeling van cellen zien. 
 
-Ook wordt de variance ratio tussen de PSI waarden berekend. Om dit te doen is eerst de splicing data omgezet naar componenten (PC). Dit houdt in dat er gekeken wordt welke PSI waarden verschillen tussen de twee groepen en statistisch relevant zijn.  
-```{python variance ratio, echo=FALSE, message=FALSE, warning=FALSE, fig.cap= variance ratio}
+Ook wordt de variance ratio tussen de PSI waarden berekend. Om dit te doen is eerst de splicing data omgezet naar componenten (PC). Dit houdt in dat er gekeken wordt welke PSI waarden verschillen tussen de twee groepen en statistisch relevant zijn. Dit kan vervolgens gebruikt worden om clusters te maken op basis van splicing in plaats van expressie. Zie figuur 9.   
+
+```{python variance ratio, echo=FALSE, message=FALSE, warning=FALSE, fig.cap= "variance ratio", fig.align= 'center', fig.width=5}
 sc.pl.pca_variance_ratio(adata_psi)
 ```
 
-Dit kan vervolgens gebruikt worden om clusters te maken op basis van splicing in plaats van expressie. 
-In de onderstaande UMAP is te zien wat de clusters zijn op basis van PSI waarden. Hieruit kan ook gezien worden of de splicing overeenkomt met de MS/controle.
+In de onderstaande UMAP is te zien wat de clusters zijn op basis van PSI waarden. Hieruit kan ook gezien worden of de splicing overeenkomt met de MS/controle. Zie figuur 10. 
 
-```{python UMap combine, echo=FALSE, message=FALSE, warning=FALSE, fig.cap= UMAP combine}
+```{python UMap combine, echo=FALSE, message=FALSE, warning=FALSE, fig.cap= "UMAP combine"}
 sc.pp.neighbors(adata_psi, n_neighbors=10, n_pcs=20, method='umap')
 sc.tl.umap(adata_psi)
 
-sc.pl.umap(adata_psi, color=['MS', 'combine'], size=60)
+sc.pl.umap(adata_psi, color=['MS', 'combine'], size=50)
 ```
 
-Hier wordt dit uitgezet voor de genen App.AS2, Mbp.AS3 en Emc10
+Hier wordt dit uitgezet voor de genen App.AS2, Mbp.AS3 en Emc10. Zie figuur 11. 
 
-```{python UMAP PSI combine , echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, fig.cap= Visualisatie PSI value }
+```{python UMAP PSI combine , echo=FALSE, message=FALSE, warning=FALSE, fig.cap= "Visualisatie PSI value" }
 sc.pl.umap(adata_psi, color=['App.AS2', 'Mbp.AS3', 'Emc10'], size=50, cmap='terrain_r')
 ```
 
-Daarna wordt de UMAP nogmaals gemaakt, dit keer bevat de UMAP alleen cellen met een betrouwbare PSI, voor een naukeurige visualisatie van de splicing.
+Daarna wordt de UMAP nogmaals gemaakt, dit keer bevat de UMAP alleen cellen met een betrouwbare PSI, voor een naukeurige visualisatie van de splicing. Zie figuur 12. 
 
-```{python confident PSI UMAP , echo=FALSE, fig.cap= UMAP met betrouwbare PSI}
+```{python confident PSI UMAP , echo=FALSE, fig.cap= "UMAP met betrouwbare PSI"}
 adata_tmp = adata_psi[adata_psi[:, 'App.AS2'].layers['Psi_95CI'] < 0.3, :]
 adata_tmp.X = adata_tmp.layers['Psi']
 sc.pl.umap(adata_tmp, color=['App.AS2', 'Mbp.AS3', 'Emc10'], size=50, cmap='terrain_r')
 ```
 
-Vervolgens zijn de eerste 3 PC geplot tegen de oorspronkelijke genexpressie UMAP. Dit kan laten zien of de splicing overeenkomt met het expressie cluster.
+Vervolgens zijn de eerste 3 PC geplot tegen de oorspronkelijke genexpressie UMAP. Dit kan laten zien of de splicing overeenkomt met het expressie cluster. Zie figuur 13. 
 
-```{python scatter PSI, echo=FALSE, fig.cap= scatter betrouwbare PSI}
+```{python scatter PSI, echo=FALSE, fig.cap= "scatter betrouwbare PSI"}
 sc.pl.scatter(adata_psi, basis='GEX_UMAP', color=['Psi_PC1', 'Psi_PC2', 'Psi_PC3'], size=50)
 ```
 
