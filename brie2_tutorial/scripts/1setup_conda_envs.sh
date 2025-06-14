@@ -5,28 +5,20 @@
 
 # Stap 1: nieuwe conda omgeving aanmaken
 # voor BRIE2
-conda create -n TFProb python=3.11
+conda create -n TFProb python=3.11 -y
 
 #voor briekit
-conda create -n briekit python=2.7 numpy=1.13.0
+conda create -n briekit python=2.7 numpy=1.13.0 -y
 
-# Stap 2: omgeving activeren
-# commanod handmatig runnen via terminal:
-# voor BRIE2
-conda activate TFProb
+# Stap 2: installeren via pip
+# packages installeren voor BRIE2 in omgeving TFProb
+conda run -n TFProb pip install -U git+https://github.com/huangyh09/brie  
 
-#v voor BRIEkit
-conda activate briekit
-
-# Stap 3: BRIE2 installeren via pip
-# voor BRIE2
-pip install -U git+https://github.com/huangyh09/brie  
-
-# voor briekit
-pip install briekit
+# packages installeren voor briekit in omgeving briekit
+conda run -n briekit pip install briekit
 
 # Stap 4: Instalatie testen 
-# voor BRIE2
-brie-quant 
+# voor BRIE2 in omgeving TFProb
+conda run -n TFProb brie-quant 
 
 
