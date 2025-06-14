@@ -11,7 +11,7 @@ output:
 ---
 # Filterings opties bekijken in Seurat
 
-Na het uitvoeren van de tutorial met seurat wordt nu gekeken naar de effecten van filtering van dataset E8.5 (GEO number GSE176588). Deze data is verkregen met VASA sequencing.
+Na het uitvoeren van de tutorial met seurat wordt nu gekeken naar de effecten van filtering in Seurat van dataset E8.5 (GEO number GSE176588). Deze data is verkregen met VASA sequencing.
 
 ## info 
 De commands worden uitgevoerd in het environment project_brie2. project_brie2 geeft de mogelijkheid om te werken met seurat-4.4.0. Dit script wordt vervolgens gemaakt via de terminal waarin R wordt geopend met het command rmarkdown::render()
@@ -20,7 +20,17 @@ De commands worden uitgevoerd in het environment project_brie2. project_brie2 ge
 Wat zijn de effecten van filtering van nFeature en percent.mt op de clustering van de data gevisualiseerd in een UMAP?
 
 ### Analyse 
+```{r settings PDF, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  out.width = "85%"
+)
+```
+
 Stap 1.1: Eerst wordt gecontroleerd of alle packages zijn geinstaleerd, als dit niet zo is wordt dit gedaan. 
+
 ```{r packages check, include=FALSE}
 packages <- c(
   "dplyr", "ggplot2", "pheatmap", "tidyr", "RColorBrewer", 
@@ -35,6 +45,7 @@ if (length(to_install) > 0) {
 
 Stap 1.2: Packages laden. 
 De packages dplyr, ggplot2, pheatmap, tidyr, RColorBrewer, ggrepel, Seurat, Matrix, patchwork en here worden geladen. Deze packages worden met de library functie toegepast in analyse.
+
 ```{r packages laden , include=FALSE}
 library(dplyr)
 library(ggplot2)
@@ -50,6 +61,7 @@ library(here)
 
 Stap 2: Data wordt geladen
 De data wordt als csv bestand ingeladen en als object bewaard. De data is afkomstig van muis embryo's op dag E8.5. 
+
 ```{r data inladen , include=FALSE}
 features <- read.csv(here("seurat_pipeline", "raw_data", "e85_feature_metadata.csv.gz"))
 samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"))
@@ -57,6 +69,7 @@ samples <- read.csv(here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv
 
 Stap 3: MTX files worden geladen
 Het object wordt samen met de matrix tabel ingeladen. 
+
 ```{r MTX files laden , include=FALSE}
 counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz"),
                   here("seurat_pipeline", "raw_data", "e85_sample_metadata.csv"),
@@ -72,27 +85,29 @@ counts <- ReadMtx(here("seurat_pipeline", "raw_data", "e85_count_matrix.mtx.gz")
 
 Stap 4: Seurat object maken
 Met de packages seurat wordt een object gemaakt waardoor de data gebruikt kan worden voor preprocessing en data analyse.
+
 ```{r Seurat object maken , include=FALSE}
 seurat <- CreateSeuratObject(counts = counts, 
                              project = "mouse-embryo", 
                              min.cells = 3, 
                              min.features = 200)
 ```
+
 Het percentage mitochondriale expressie wordt handmatig toegevoegd aan het seurat object omdat deze nodig is voor de kwaliteits check. 
+
 ```{r percent.MT toevoegen , include=FALSE}
 seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
 ```
 
-Stap 5:Kwaliteit check met visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Dit wordt geplot in een violin plot zodat kan worden gekeken hoe de data is verdeeld. Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. Een te hoog aantal kan juist wijzen op dubbele metingen. Veder is het mitochondriaal percentage belangrijk omdat een hoog percentage hiervan wijst op dode of slechte kwaliteit cellen. 
+Stap 5:Kwaliteit check met visualisatie in violin plot van nFeature_RNA (unieke genen per cel), nCount_RNA (totaal aantal moleculen), en percent.mt (mitochondriale expressie). Dit wordt geplot in een violin plot zodat kan worden gekeken hoe de data is verdeeld. Een laag aantal unieke genen of moleculen kan namelijk wijzen op lege of slechte kwaliteit van de cellen. Een te hoog aantal kan juist wijzen op dubbele metingen. Veder is het mitochondriaal percentage belangrijk omdat een hoog percentage hiervan wijst op dode of slechte kwaliteit cellen. In deze violoin plots wordt weergeven hoe de data verdeeld is.Om te bepalen welke data er meegenomen wordt in verdere analyse worden er verschillende manieren van filteren getest. 
+Op de Y-as wordt het aanalt genen, moleculen en percentage MT weergeven. Op de X-as staan de verschillende metingen die plaats hebben gevonden. Vanwege de grote hoeveelheid cellen zijn deze in verschillede metingen gesequenced. 
+
 ```{r Violin plot dataset, echo=FALSE, fig.align='right', fig.cap="Visualisatie kwaliteit dataset E8.5", fig.height=4, fig.width=7}
 VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 ```
-In deze violoin plots wordt weergeven hoe de data verdeeld is.Om te bepalen welke data er meegenomen wordt in verdere analyse worden er verschillende manieren van filteren getest. 
-Op de Y-as wordt het aanalt genen, moleculen en percentage MT weergeven. Op de X-as staan de verschillende metingen die plaats hebben gevonden. Vanwege de grote hoeveelheid cellen zijn deze in verschillede metingen gesequenced. 
 
 Stap 6. De data kan vervolgens op verschillende manieren worden gefilterd nu is gekozen voor de de opties sctrict, mild en geen filter. Dit is gedaan op basis van de violin plot uit stap 5, er zijn namelijk niet hele grote verschillen in de data. 
 Er is gekozen voor strikt filtering, milde filtering en geen filtering. Dit wordt gedaan te kijken welke filtering het beste is voor de data. De verschil in filtering zit op de nFeature en percent.mt. Er is voor gekozen om de percent.mt niet te testen, dit omdat 5% vanuit de literatuur wordt aanreikt als cutoff waarden voor muizen cellen. De nCount wordt ook niet meegenomen in deze filter stap omdat deze data geen genexpressie informatie bevat en niet verder wordt gebruikt in de berekening. 
-
 De filters zijn:
 Seurat strict = nFeature >2500 <10000 & percent.mt <5%
 Seurat mild = nFeature >2000 <12000 & percent.mt <5%
@@ -122,21 +137,15 @@ seurat_mild <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_mild.rds
 seurat_nofilter <- readRDS(here("seurat_pipeline", "bewerkte_data", "seurat_nofilter.rds"))
 ```
 
-Stap 7. Opnieuw worden de violin plots gemaakt om het effect van de filter stappen te zien op de data. zie figuur 2. 
-```{r Violin plot filter opties, echo=FALSE, fig.align='right', fig.cap="Verschillende filterings opties (strikt, mild en geen filter)", fig.height=9, fig.width=7}
-vln_strict <- VlnPlot(seurat_strict, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) + 
-  plot_annotation(title = "Strikt filter")
+Stap 7. Opnieuw worden de violin plots gemaakt om het effect van de filter stappen te zien op de data. zie figuur 2. We zien nu het effect van de filtering op de data. De bovenste rij is het strikte filter en we zien daar een duidelijk lijn welke cellen wel of niet wordt meegenomen. Bij de tweede rij (het milde filter) is deze lijn een stuk minder strak voor nFeature en nCount. Voor de laatste rij is geen filter gebruikt en bevat dus alle cellen. Zie figuur 2 Verschillende fillterings opties. 
 
-vln_mild <- VlnPlot(seurat_mild, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) + 
-  plot_annotation(title = "Mild filter")
-
-vln_nofilter <- VlnPlot(seurat_nofilter, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) + 
-  plot_annotation(title = "Geen filter")
+```{r Violin plot filter opties, echo=FALSE, fig.cap="Verschillende filterings opties (strikt (rij 1), mild (rij 2) en geen filter(rij 3))", fig.height=9, fig.width=7}
+vln_strict <- VlnPlot(seurat_strict, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) 
+vln_mild <- VlnPlot(seurat_mild, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) 
+vln_nofilter <- VlnPlot(seurat_nofilter, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3) 
 
 (vln_strict / vln_mild / vln_nofilter)
 ```
-
-We zien nu het effect van de filtering op de data. De bovenste rij is het strikte filter en we zien daar een duidelijk lijn welke cellen wel of niet wordt meegenomen. Bij de tweede rij (het milde filter) is deze lijn een stuk minder strak voor nFeature en nCount. Voor de laatste rij is geen filter gebruikt en bevat dus alle cellen. 
 
 ```{r objecten verwijderen, include=FALSE}
 # Verwijder de objecten om geheugen vrij te maken
@@ -181,24 +190,34 @@ seurat_mild <- process_seurat(seurat_mild, "Mild")
 seurat_nofilter <- process_seurat(seurat_nofilter, "Geen filter")
 ```
 
-Stap 10. Van de 3 verschillende filter opties worden UMAPs gemaakt, om het verschil te laten zien. 
+Stap 10. Van de 3 verschillende filter opties worden UMAPs gemaakt, om het verschil te laten zien. Zie figuren 3, 4 en 5. 
+
 ```{r UMAP maken , include=FALSE}
 #individule UMAP plots maken 
-umap_strict <- DimPlot(seurat_strict, reduction = "umap") + ggtitle("Strikt filter")
-umap_mild <- DimPlot(seurat_mild, reduction = "umap") + ggtitle("Mild filter")
-umap_nofilter <- DimPlot(seurat_nofilter, reduction = "umap") + ggtitle("Geen filter")
+umap_strict <- DimPlot(seurat_strict, reduction = "umap") 
+umap_mild <- DimPlot(seurat_mild, reduction = "umap") 
+umap_nofilter <- DimPlot(seurat_nofilter, reduction = "umap") 
 ```
 
 Stap 11. De UMAPs weergeven. zie figuur 4 (strikt), figuur 5 (mild) en figuur 6 (geen filter)
-```{r UMAP plotten, echo=FALSE, fig.align='center', fig.cap="UMAP filter opties dataset E8.5", fig.height=7, fig.width=7}
-print(umap_strict)
-print(umap_mild)
-print(umap_nofilter)
+```{r UMAP strikt, echo=FALSE, fig.cap="UMAP filter strikt", fig.height=5, fig.width=5 }
+umap_strict
+```
+
+```{r UMAP mild, echo=FALSE, fig.cap="UMAP filter mild", fig.height=5, fig.width=5}
+umap_mild
+```
+
+```{r UMAP no filter, echo=FALSE, fig.cap="UMAP no filter", fig.height=5, fig.width=5}
+umap_nofilter
 ```
 
 
 ### Conclusie
+
 In de umaps is te zien dat de milde en strikte filter ongeveer dezelfde clusters bevatten. Toch is op basis van deze UMAPS is gekozen voor filter optie mild. Dit omdat met deze manier van filteren zo veel mogelijk data wordt meegenomen wat bijdraagd aan de betrouwbaarheid van de verdere analyse. Bij deze optie zijn er ook duidelijke clusters te zien in vergelijking met de geen filter optie. Ook kunnen door de strenge filtering misschien cellen worden weg gefilterd die zorgen voor intressante variatie. Verder is het doel van het onderzoek nu om een pipeline op te zetten voor BRIE2, daarom is de biologische relevantie minder prioriteit. 
 
+
 ### Discussie
+
 Strengere filtering kan wel zorgen voor minder ruis wat kan zorgen voor een duidelijker biologisch verschil. Daarom zou na het ontwikkelen van de analyse pipeline van brie2 is ontwikkeld om zo andere clusters te kunnen vergelijken. Ook zou het nog een mogelijkheid zijn om naar een andere methode van visualisatie. Zo zou er voor specifieke genen het verschil in expressie worden weergeven in een violin plot. Om het hele dataset zichtbaar te maken zou ook nog een heatmap gebruikt kunnen worden, al kunnen onderlinge relaties tussen groepen hier wel minder goed in worden weergeven. Omdat nu gekozen is voor filter mild zou ik wel aanraden om na het opzetten van de pipeline deze opnieuw door te lopen met de strenger gefilterde data om te zien of er verschil is in uitkomst. Ook kan op deze manier de pipeline gecontroleerd. worden. 
