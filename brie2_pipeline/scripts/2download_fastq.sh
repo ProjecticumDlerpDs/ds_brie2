@@ -5,16 +5,7 @@
 
 samples=(
   "E8.5-19_i36 SRR14783084"
-  "E8.5-1_i7 SRR14783085"
-  "E8.5-20_i37 SRR14783086"
-  "E8.5-21_i38 SRR14783087"
-  "E8.5-22_i39 SRR14783088"
-  "E8.5-23_i40 SRR14783089"
-  "E8.5-4_i8 SRR14783092"
-  "E8.5-5_i18 SRR14783093"
-  "E8.5-8_i21 SRR14783096"
-  "E8.5-9_i33 SRR14783097"
-)
+  "E8.5-1_i7 SRR14783085")
 
 mkdir -p fastq
 
@@ -29,14 +20,28 @@ echo "Processing sample: $name with SRR: $srr"
 prefetch $srr
 
 # Zet om naar fastq en sla op in fastq/ map, naam prefix met sample naam
-fasterq-dump $srr --split-files --gzip -O fastq/
+fasterq-dump $srr --split-files --gzip -O fastq/ -t ./tmp -e 4 2>> fasterq_errors.log
   
 # Hernoem bestanden naar herkenbare namen
-mv fastq/${srr}_1.fastq.gz fastq/${name}_1.fastq.gz
-mv fastq/${srr}_2.fastq.gz fastq/${name}_2.fastq.gz
+if [[ -f fastq/${srr}_1.fastq.gz && -f fastq/${srr}_2.fastq.gz ]]; then
+    mv fastq/${srr}_1.fastq.gz fastq/${name}_1.fastq.gz
+    mv fastq/${srr}_2.fastq.gz fastq/${name}_2.fastq.gz
+    echo "$srr succesvol geconverteerd en hernoemd."
+    
+# Zoek en verwijder het .sra bestand
+    sra_file=$(find ~/.ncbi -name "${srr}.sra" 2>/dev/null | head -n 1)
+    if [[ -f "$sra_file" ]]; then
+      rm "$sra_file"
+      echo "🗑️  .sra bestand verwijderd: $sra_file"
+    fi
+  else
+    echo "FASTQ-bestanden ontbreken voor $srr. Conversie mislukt?"
+  fi
 done
 
+echo "Klaar met verwerken van alle samples. Controleer 'fasterq_errors.log' indien nodig."
 
+.
 #uitvoerbaar maken chmod +x download_fastq.sh (eenmalig)
-#runnen met /download_fastq.sh
+#runnen met ./2download_fastq.sh
 
