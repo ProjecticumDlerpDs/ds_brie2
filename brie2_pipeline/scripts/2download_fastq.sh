@@ -14,9 +14,9 @@ samples=(
   "E8.5-5_i18 SRR14783093"
   "E8.5-8_i21 SRR14783096"
   "E8.5-9_i33 SRR14783097"
-  )
+ )
 
-mkdir -p fastq
+mkdir -p ../raw_data/fastq
 
 for sample in "${samples[@]}"
 do
@@ -29,16 +29,16 @@ echo "Processing sample: $name with SRR: $srr"
 prefetch $srr
 
 # Zet om naar fastq en sla op in fastq/ map, naam prefix met sample naam
-fasterq-dump $srr --split-files --gzip -O fastq/ -t ./tmp -e 4 2>> fasterq_errors.log
+fastq-dump $srr --split-files --gzip -O ../raw_data/fastq/  2>> ../raw_data/fastq_errors.log
   
 # Hernoem bestanden naar herkenbare namen
-if [[ -f fastq/${srr}_1.fastq.gz && -f fastq/${srr}_2.fastq.gz ]]; then
-    mv fastq/${srr}_1.fastq.gz fastq/${name}_1.fastq.gz
-    mv fastq/${srr}_2.fastq.gz fastq/${name}_2.fastq.gz
+if [[ -f ../raw_data/fastq/${srr}_1.fastq.gz && -f ../raw_data/fastq/${srr}_2.fastq.gz ]]; then
+    mv ../raw_data/fastq/${srr}_1.fastq.gz ../raw_data/fastq/${name}_1.fastq.gz
+    mv ../raw_data/fastq/${srr}_2.fastq.gz ../raw_data/fastq/${name}_2.fastq.gz
     echo "$srr succesvol geconverteerd en hernoemd."
     
 # Zoek en verwijder het .sra bestand
-    sra_file=$(find ~/.ncbi -name "${srr}.sra" 2>/dev/null | head -n 1)
+    sra_file=$(find ~/.ncbi/public/sra -name "${srr}.sra" 2>/dev/null | head -n 1)
     if [[ -f "$sra_file" ]]; then
       rm "$sra_file"
       echo "🗑️  .sra bestand verwijderd: $sra_file"
@@ -48,9 +48,12 @@ if [[ -f fastq/${srr}_1.fastq.gz && -f fastq/${srr}_2.fastq.gz ]]; then
   fi
 done
 
-echo "Klaar met verwerken van alle samples. Controleer 'fasterq_errors.log' indien nodig."
+echo "Klaar met verwerken van alle samples. Controleer 'fastq_errors.log' indien nodig."
 
-.
-#uitvoerbaar maken chmod +x download_fastq.sh (eenmalig)
+
+#uitvoerbaar maken chmod +x 2download_fastq.sh (eenmalig)
 #runnen met ./2download_fastq.sh
 
+#E8.5-19_i36 SRR14783084 .sra bestand is 3.3 GB fastq files zijn ~ 6 GB voor 10 sampels is dat ~ 30 GB aan sra files en 60 GB aan fastq files. 
+#Er is dus ongeveer 100 GB nodig voor downloaden. Op dit moment 21JUN25 is er 287 GB open op de server. 
+#Dit script is getest op het eerste sample en werkt, inverband met opslag nog niet alles gedownload. 

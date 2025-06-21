@@ -63,3 +63,6 @@ brie2_tutorial/raw_data
 
 # ruwe data niet pushen 
 brie2_pipeline/raw_data/
+
+# geen zip 
+*.zip

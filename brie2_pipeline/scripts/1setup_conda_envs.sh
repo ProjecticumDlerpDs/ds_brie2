@@ -10,8 +10,8 @@ conda create -n TFProb python=3.11
 #voor briekit
 conda create -n briekit python=2.7 numpy=1.13.0
 
-#voor downloaden data met sra-download 
-conda create -n sra-download sra-tools
+#voor downloaden data met sra-env
+conda create -n sra-env -c bioconda -c conda-forge sra-tools=2.11.0
 
 # Stap 2: omgeving activeren
 # commanod handmatig runnen via terminal:
@@ -22,7 +22,7 @@ conda activate TFProb
 conda activate briekit
 
 # voor sra-downloaden 
-conda activate sra-download
+conda activate sra-env
 
 # Stap 3: BRIE2 installeren via pip
 # voor BRIE2
