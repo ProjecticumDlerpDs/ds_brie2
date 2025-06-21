@@ -68,3 +68,5 @@ brie2_pipeline/raw_data/
 # geen zip 
 *.zip
 
+# geen csv 
+*.csv 
