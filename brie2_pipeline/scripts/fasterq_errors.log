@@ -1,6 +1,0 @@
-2025-06-16T13:39:34 fasterq-dump.3.2.1 err: param unknown while parsing argument list within application support module - Unknown argument '--gzip'
-2025-06-16T13:39:34 fasterq-dump.3.2.1 err: ArgsMakeAndHandle() -> RC(rcApp,rcArgv,rcParsing,rcParam,rcUnknown)
-fasterq-dump quit with error code 3
-2025-06-16T13:42:42 fasterq-dump.3.2.1 err: param unknown while parsing argument list within application support module - Unknown argument '--gzip'
-2025-06-16T13:42:42 fasterq-dump.3.2.1 err: ArgsMakeAndHandle() -> RC(rcApp,rcArgv,rcParsing,rcParam,rcUnknown)
-fasterq-dump quit with error code 3
